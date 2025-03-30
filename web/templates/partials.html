@@ -1,0 +1,22 @@
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Source</th>
+      <th>Received At</th>
+      <th>Status</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{range .}}
+    <tr>
+      <td>{{.ID}}</td>
+      <td>{{.Source}}</td>
+      <td>{{.ReceivedAt}}</td>
+      <td class="status-{{.Status}}">{{.Status}}</td>
+      <td><a href="/api/webhooks/replay?id={{.ID}}">Replay</a></td>
+    </tr>
+    {{end}}
+  </tbody>
+</table>

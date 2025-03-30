@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>WebhookHub Dashboard</title>
+  <script src="https://unpkg.com/htmx.org@1.9.2"></script>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; background: #f9f9f9; }
+    h1 { margin-bottom: 1rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { padding: 0.5rem; border: 1px solid #ccc; }
+    th { background: #eee; }
+    .status-success { color: green; }
+    .status-failed { color: red; }
+    .status-pending { color: orange; }
+    .top-bar { display: flex; justify-content: space-between; align-items: center; }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <h1>WebhookHub Dashboard</h1>
+    <form action="/logout" method="POST"><button type="submit">Logout</button></form>
+  </div>
+
+  <div hx-get="/partials/webhooks" hx-trigger="load, every 5s" hx-swap="innerHTML">
+    Loading webhooks...
+  </div>
+</body>
+</html>
