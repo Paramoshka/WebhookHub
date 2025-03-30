@@ -2,14 +2,90 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Login - WebhookHub</title>
+  <title>Login – WebhookHub</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #2c3e50, #3498db);
+      color: white;
+      height: 100vh;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .login-container {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 2rem 3rem;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      backdrop-filter: blur(10px);
+      animation: fadeIn 1s ease-out forwards;
+      opacity: 0;
+    }
+
+    .login-container h2 {
+      margin-bottom: 1.5rem;
+      font-size: 1.8rem;
+      text-align: center;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 1rem;
+    }
+
+    input {
+      width: 100%;
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      border: none;
+      font-size: 1rem;
+    }
+
+    button {
+      width: 100%;
+      margin-top: 1rem;
+      padding: 0.6rem 1rem;
+      background: #2980b9;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: #1c5980;
+    }
+
+    @keyframes fadeIn {
+      from {
+        transform: translateY(20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+  </style>
 </head>
 <body>
-  <h2>Login</h2>
-  <form method="POST" action="/login">
-    <label>Username: <input type="text" name="username" /></label><br><br>
-    <label>Password: <input type="password" name="password" /></label><br><br>
-    <button type="submit">Login</button>
-  </form>
+  <div class="login-container">
+    <h2>Login to WebhookHub</h2>
+    <form method="POST" action="/login">
+      <label>Username
+        <input type="text" name="username" required />
+      </label>
+      <label>Password
+        <input type="password" name="password" required />
+      </label>
+      <button type="submit">Login</button>
+    </form>
+  </div>
 </body>
 </html>
