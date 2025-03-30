@@ -20,7 +20,6 @@ func main() {
 	mux := http.NewServeMux()
 
 	// Public routes
-	mux.HandleFunc("/login", handler.LoginPage())
 	mux.HandleFunc("/logout", handler.Logout())
 	mux.HandleFunc("/login", handler.Login())
 
