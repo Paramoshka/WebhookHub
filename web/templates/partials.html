@@ -16,6 +16,15 @@
       <td>{{.ReceivedAt}}</td>
       <td class="status-{{.Status}}">{{.Status}}</td>
       <td><a href="/api/webhooks/replay?id={{.ID}}">Replay</a></td>
+      <td>
+        <a href="/api/webhooks/replay?id={{.ID}}">Replay</a> |
+        <button 
+          hx-get="/partials/webhook/{{.ID}}" 
+          hx-target="#modal-content" 
+          hx-swap="innerHTML"
+          _="on click show #modal"
+        >Inspect</button>
+      </td>      
     </tr>
   {{end}}  
   </tbody>

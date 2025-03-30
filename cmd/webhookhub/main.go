@@ -31,6 +31,7 @@ func main() {
 	mux.HandleFunc("/api/webhooks/replay", handler.RequireAuth(handler.ReplayWebhook(db)))
 	mux.HandleFunc("/partials/webhooks", handler.RequireAuth(handler.WebhookPartial(db)))
 	mux.HandleFunc("/hook/", handler.ReceiveWebhook(db)) // Optionally protect this too
+	mux.HandleFunc("/partials/webhook/", handler.RequireAuth(handler.InspectWebhook(db)))
 
 	log.Println("Listening on :8080")
 	log.Fatal(http.ListenAndServe(":8080", mux))

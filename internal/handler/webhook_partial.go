@@ -50,3 +50,17 @@ func WebhookPartial(db *storage.DB) http.HandlerFunc {
 		tmpl.Execute(w, data)
 	}
 }
+
+func InspectWebhook(db *storage.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimPrefix(r.URL.Path, "/partials/webhook/")
+		webhook, found := db.FindByID(id)
+		if !found {
+			http.NotFound(w, r)
+			return
+		}
+
+		tmpl := template.Must(template.ParseFiles("web/templates/inspect.html"))
+		tmpl.Execute(w, webhook)
+	}
+}
