@@ -9,7 +9,7 @@
     </tr>
   </thead>
   <tbody>
-    {{range .}}
+    {{range .Webhooks}}
     <tr>
       <td>{{.ID}}</td>
       <td>{{.Source}}</td>
@@ -17,6 +17,6 @@
       <td class="status-{{.Status}}">{{.Status}}</td>
       <td><a href="/api/webhooks/replay?id={{.ID}}">Replay</a></td>
     </tr>
-    {{end}}
+  {{end}}  
   </tbody>
 </table>

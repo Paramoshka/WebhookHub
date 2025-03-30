@@ -1,0 +1,28 @@
+<div>
+  <form id="filter-form" hx-get="/partials/webhooks" hx-target="#logs-table" hx-swap="innerHTML" class="filters">
+    <label>
+      Source:
+      <input type="text" name="source" placeholder="e.g., stripe" />
+    </label>
+    <label>
+      Status:
+      <select name="status">
+        <option value="">All</option>
+        <option value="success">Success</option>
+        <option value="failed">Failed</option>
+        <option value="pending">Pending</option>
+      </select>
+    </label>
+    <button type="submit">Apply</button>
+  </form>
+</div>
+
+<div id="logs-table">
+  {{template "partials.html" .}}
+</div>
+
+<div class="pagination">
+  <button hx-get="/partials/webhooks?page={{.PrevPage}}" hx-target="#logs-table" hx-swap="innerHTML" {{if .DisablePrev}}disabled{{end}}>Prev</button>
+  <span>Page {{.CurrentPage}}</span>
+  <button hx-get="/partials/webhooks?page={{.NextPage}}" hx-target="#logs-table" hx-swap="innerHTML" {{if .DisableNext}}disabled{{end}}>Next</button>
+</div>
