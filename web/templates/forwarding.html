@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Forwarding Rules</title>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; background: #f2f2f2; }
+    h1 { margin-bottom: 1rem; }
+    form { background: white; padding: 1rem; border-radius: 8px; max-width: 500px; }
+    label { display: block; margin-top: 1rem; }
+    input[type=text] { width: 100%; padding: 0.5rem; margin-top: 0.2rem; }
+    button { margin-top: 1rem; padding: 0.5rem 1rem; }
+    table { width: 100%; margin-top: 2rem; border-collapse: collapse; }
+    th, td { padding: 0.5rem; border: 1px solid #ccc; }
+    th { background: #eee; }
+  </style>
+</head>
+<body>
+  <h1>Manage Forwarding Rules</h1>
+
+  <form method="POST" action="/forwarding/save">
+    <label>Source (e.g., stripe)</label>
+    <input type="text" name="source" required>
+
+    <label>Target URL</label>
+    <input type="text" name="target" required>
+
+    <button type="submit">Add Rule</button>
+  </form>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Source</th>
+        <th>Target URL</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range $source, $target := .}}
+      <tr>
+        <td>{{$source}}</td>
+        <td>{{$target}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</body>
+</html>
