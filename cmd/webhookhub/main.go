@@ -3,21 +3,35 @@ package main
 import (
 	"log"
 	"net/http"
+
+	"github.com/joho/godotenv"
+
 	"webhookhub/internal/handler"
 	"webhookhub/internal/storage"
 )
 
 func main() {
+	// Load .env if present
+	_ = godotenv.Load()
+
 	db := storage.InitDB("webhooks.db")
 	db.InitForwardingTable()
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/hook/", handler.ReceiveWebhook(db))
-	mux.HandleFunc("/api/webhooks", handler.ListWebhooks(db))
-	mux.HandleFunc("/api/webhooks/replay", handler.ReplayWebhook(db))
-	mux.HandleFunc("/", handler.ServeUI(db))
-	mux.HandleFunc("/forwarding", handler.ForwardingUI(db))
-	mux.HandleFunc("/forwarding/save", handler.SaveForwardingRule(db))
+
+	// Public routes
+	mux.HandleFunc("/login", handler.LoginPage())
+	mux.HandleFunc("/logout", handler.Logout())
+	mux.HandleFunc("/login", handler.Login())
+
+	// Protected routes
+	mux.HandleFunc("/", handler.RequireAuth(handler.ServeDashboard(db)))
+	mux.HandleFunc("/forwarding", handler.RequireAuth(handler.ForwardingUI(db)))
+	mux.HandleFunc("/forwarding/save", handler.RequireAuth(handler.SaveForwardingRule(db)))
+	mux.HandleFunc("/api/webhooks", handler.RequireAuth(handler.ListWebhooks(db)))
+	mux.HandleFunc("/api/webhooks/replay", handler.RequireAuth(handler.ReplayWebhook(db)))
+	mux.HandleFunc("/partials/webhooks", handler.RequireAuth(handler.WebhookPartial(db)))
+	mux.HandleFunc("/hook/", handler.ReceiveWebhook(db)) // Optionally protect this too
 
 	log.Println("Listening on :8080")
 	log.Fatal(http.ListenAndServe(":8080", mux))
