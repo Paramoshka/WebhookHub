@@ -24,7 +24,8 @@ func main() {
 	mux.HandleFunc("/logout", handler.Logout())
 	mux.HandleFunc("/login", handler.Login())
 	// Protected routes
-	mux.HandleFunc("/", handler.RequireAuth(handler.ServeDashboard(db)))
+	mux.HandleFunc("/", handler.RequireAuth(handler.ServeIndex(db)))
+	mux.HandleFunc("/dashboard", handler.RequireAuth(handler.DashboardUI(db)))
 	mux.HandleFunc("/api/webhooks", handler.RequireAuth(handler.ListWebhooks(db)))
 	mux.HandleFunc("/api/webhooks/replay", handler.RequireAuth(handler.ReplayWebhook(db)))
 	mux.HandleFunc("/partials/webhooks", handler.RequireAuth(handler.WebhookPartial(db)))
