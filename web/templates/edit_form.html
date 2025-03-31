@@ -1,0 +1,17 @@
+<div style="background: rgba(255,255,255,0.1); padding: 1.5rem; border-radius: 12px; box-shadow: 0 0 8px rgba(0,0,0,0.2);">
+  <h3 style="margin-top: 0; color: #fff;">Edit Forwarding Rule</h3>
+  <form method="POST" action="/forwarding/update" style="display: flex; flex-direction: column; gap: 1rem;">
+    <input type="hidden" name="source" value="{{.Source}}">
+    <label style="color:#ccc;">
+      Source: <strong>{{.Source}}</strong>
+    </label>
+    <label>
+      <input type="text" name="target" value="{{.Target}}" required
+             style="padding: 0.6rem; border-radius: 8px; border: none; width: 100%; font-size: 1rem;">
+    </label>
+    <button type="submit"
+            style="padding: 0.7rem; background: linear-gradient(to right, #2ecc71, #27ae60); border: none; border-radius: 8px; color: white; font-size: 1rem;">
+      Save Changes
+    </button>
+  </form>
+</div>

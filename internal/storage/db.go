@@ -67,3 +67,7 @@ func (d *DB) FindByID(id string) (model.Webhook, bool) {
 func (d *DB) UpdateStatus(id int, status string) {
 	d.conn.Exec("UPDATE webhooks SET status = ? WHERE id = ?", status, id)
 }
+
+func (d *DB) DeleteForwardingRule(source string) {
+	d.conn.Exec("DELETE FROM forwarding_rules WHERE source = ?", source)
+}

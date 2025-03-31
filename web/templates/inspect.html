@@ -1,7 +1,11 @@
-<h2>Webhook #{{.ID}} – {{.Source}}</h2>
-<p><strong>Status:</strong> {{.Status}}</p>
-<p><strong>Received At:</strong> {{.ReceivedAt}}</p>
-<p><strong>Headers:</strong></p>
-<pre>{{.Headers}}</pre>
-<p><strong>Payload:</strong></p>
-<pre>{{printf "%s" .Payload}}</pre>
+<div style="padding: 1rem;">
+    <h2>Webhook #{{.ID}}</h2>
+    <p><strong>Source:</strong> {{.Source}}</p>
+    <p><strong>Status:</strong> <span class="status-{{.Status}}">{{.Status}}</span></p>
+    <p><strong>Received At:</strong> {{.ReceivedAt}}</p>
+    <p><strong>Headers:</strong></p>
+    <pre style="background:#f4f4f4; color:#333; padding: 1rem; border-radius: 8px;">{{.Headers}}</pre>
+
+    <p><strong>Payload:</strong></p>
+    <pre style="background:#f4f4f4; color:#333; padding: 1rem; border-radius: 8px;">{{printf "%s" .Payload}}</pre>
+</div>

@@ -26,3 +26,12 @@
   <span>Page {{.CurrentPage}}</span>
   <button hx-get="/partials/webhooks?page={{.NextPage}}" hx-target="#logs-table" hx-swap="innerHTML" {{if .DisableNext}}disabled{{end}}>Next</button>
 </div>
+
+<div id="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000;"
+     _="on click hide me">
+  <div id="modal-content"
+       style="background:white; color:black; padding:2rem; margin:5% auto; width:80%; max-width:800px; border-radius:12px;"
+       _="on click stopPropagation">
+    <!-- Dynamic content will load here -->
+  </div>
+</div>

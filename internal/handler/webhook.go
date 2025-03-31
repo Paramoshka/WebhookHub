@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -43,12 +44,16 @@ func ListWebhooks(db *storage.DB) http.HandlerFunc {
 func ReplayWebhook(db *storage.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.URL.Query().Get("id")
-		if hook, found := db.FindByID(id); found {
-			go forwarder.Forward(db, hook)
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("Replaying"))
-		} else {
+		hook, found := db.FindByID(id)
+		if !found {
 			http.Error(w, "Not found", http.StatusNotFound)
+			return
 		}
+
+		go forwarder.Forward(db, hook)
+
+		// возвращаем тот же HTML, что и был
+		w.Header().Set("Content-Type", "text/html")
+		fmt.Fprintf(w, `<span style="color:green;">✅ Replayed</span>`)
 	}
 }
