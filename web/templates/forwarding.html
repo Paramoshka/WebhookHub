@@ -1,130 +1,6 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Forwarding Rules – WebhookHub</title>
-  <script src="https://unpkg.com/htmx.org@1.9.2"></script>
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, #2c3e50, #3498db);
-      color: white;
-      margin: 0;
-      padding: 0;
-    }
+{{define "title"}}Forwarding Rules – WebhookHub{{end}}
 
-    .navbar {
-      background: #111;
-      color: white;
-      padding: 1rem;
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .navbar a {
-      color: white;
-      margin-right: 1rem;
-      text-decoration: none;
-    }
-
-    .container {
-      max-width: 800px;
-      margin: 2rem auto;
-      background: rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(10px);
-      padding: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 0 16px rgba(0,0,0,0.3);
-    }
-
-    h2 {
-      text-align: center;
-      margin-bottom: 1.5rem;
-    }
-
-    form {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      margin-bottom: 2rem;
-    }
-
-    input {
-      padding: 0.6rem;
-      border-radius: 8px;
-      border: none;
-      font-size: 1rem;
-    }
-
-    button {
-      padding: 0.6rem 1rem;
-      border: none;
-      border-radius: 8px;
-      font-size: 1rem;
-      cursor: pointer;
-    }
-
-    .btn-edit {
-      background: linear-gradient(to right, #2ecc71, #27ae60);
-      color: white;
-      margin-right: 0.5rem;
-    }
-
-    .btn-delete {
-      background: linear-gradient(to right, #e74c3c, #c0392b);
-      color: white;
-    }
-
-    .btn-edit:hover {
-      background: linear-gradient(to right, #27ae60, #1e8449);
-    }
-
-    .btn-delete:hover {
-      background: linear-gradient(to right, #c0392b, #922b21);
-    }
-
-    .btn-primary {
-      background: #2980b9;
-      color: white;
-    }
-
-    .btn-primary:hover {
-      background: #1c5980;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    th, td {
-      padding: 0.6rem;
-      text-align: left;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-    }
-
-    th {
-      color: #ccc;
-    }
-
-    .action-buttons {
-      display: flex;
-      gap: 0.5rem;
-    }
-  </style>
-</head>
-<body>
-<div class="navbar">
-  <div>
-    <a href="/" hx-boost="true">Webhook Logs</a>
-    <a href="/forwarding" hx-boost="true">Forwarding Rules</a>
-  </div>
-  <form action="/logout" method="POST">
-    <button class="btn-primary" type="submit">Logout</button>
-  </form>
-</div>
-
-<div class="container">
+{{define "content"}}
   <h2>Forwarding Rules</h2>
 
   <form method="POST" action="/forwarding/save">
@@ -135,38 +11,37 @@
 
   <table>
     <thead>
-    <tr>
-      <th>Source</th>
-      <th>Target URL</th>
-      <th>Action</th>
-    </tr>
+      <tr>
+        <th>Source</th>
+        <th>Target URL</th>
+        <th>Action</th>
+      </tr>
     </thead>
     <tbody>
-    {{range $source, $target := .}}
-    <tr>
-      <td>{{$source}}</td>
-      <td>{{$target}}</td>
-      <td>
-        <div class="action-buttons">
-          <button
-                  class="btn-edit"
-                  hx-get="/forwarding/edit?source={{$source}}"
-                  hx-target="#edit-form"
-                  hx-swap="innerHTML"
-          >Edit</button>
+      {{range $source, $target := .}}
+      <tr>
+        <td>{{$source}}</td>
+        <td>{{$target}}</td>
+        <td>
+          <div class="action-buttons">
+            <button
+              class="btn-edit"
+              hx-get="/forwarding/edit?source={{$source}}"
+              hx-target="#edit-form"
+              hx-swap="innerHTML"
+              type="button"
+            >Edit</button>
 
-          <form method="POST" action="/forwarding/delete" onsubmit="return confirm('Delete this rule?')">
-            <input type="hidden" name="source" value="{{$source}}">
-            <button class="btn-delete" type="submit">Delete</button>
-          </form>
-        </div>
-      </td>
-    </tr>
-    {{end}}
+            <form method="POST" action="/forwarding/delete" onsubmit="return confirm('Delete this rule?')">
+              <input type="hidden" name="source" value="{{$source}}">
+              <button class="btn-delete" type="submit">Delete</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {{end}}
     </tbody>
   </table>
 
   <div id="edit-form" style="margin-top: 2rem;"></div>
-</div>
-</body>
-</html>
+{{end}}

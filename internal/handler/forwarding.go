@@ -9,9 +9,12 @@ import (
 
 func ForwardingUI(db *storage.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tmpl := template.Must(template.ParseFiles("web/templates/forwarding.html"))
 		rules := db.GetForwardingRules()
-		tmpl.Execute(w, rules)
+		tmpl := template.Must(template.ParseFiles(
+			"web/templates/base.html",
+			"web/templates/forwarding.html",
+		))
+		tmpl.ExecuteTemplate(w, "base", rules)
 	}
 }
 

@@ -20,9 +20,9 @@ func main() {
 	mux := http.NewServeMux()
 
 	// Public routes
+	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
 	mux.HandleFunc("/logout", handler.Logout())
 	mux.HandleFunc("/login", handler.Login())
-
 	// Protected routes
 	mux.HandleFunc("/", handler.RequireAuth(handler.ServeDashboard(db)))
 	mux.HandleFunc("/api/webhooks", handler.RequireAuth(handler.ListWebhooks(db)))

@@ -6,17 +6,12 @@ import (
 	"webhookhub/internal/storage"
 )
 
-func ServeUI(db *storage.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		tmpl := template.Must(template.ParseFiles("web/templates/index.html"))
-		data := db.All()
-		tmpl.Execute(w, data)
-	}
-}
-
 func ServeDashboard(db *storage.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tmpl := template.Must(template.ParseFiles("web/templates/dashboard.html"))
-		tmpl.Execute(w, nil)
+		tmpl := template.Must(template.ParseGlob("web/templates/*.html"))
+		err := tmpl.ExecuteTemplate(w, "base", nil)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }

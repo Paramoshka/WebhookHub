@@ -1,41 +1,9 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>WebhookHub UI</title>
-    <style>
-        body { font-family: sans-serif; margin: 2rem; background: #f9f9f9; }
-        table { border-collapse: collapse; width: 100%; }
-        th, td { padding: 0.5rem; border: 1px solid #ccc; }
-        th { background: #eee; }
-        .status-success { color: green; }
-        .status-failed { color: red; }
-        .status-pending { color: orange; }
-    </style>
-</head>
-<body>
-    <h1>Received Webhooks</h1>
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Source</th>
-                <th>Received At</th>
-                <th>Status</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{range .}}
-            <tr>
-                <td>{{.ID}}</td>
-                <td>{{.Source}}</td>
-                <td>{{.ReceivedAt}}</td>
-                <td class="status-{{.Status}}">{{.Status}}</td>
-                <td><a href="/api/webhooks/replay?id={{.ID}}">Replay</a></td>
-            </tr>
-            {{end}}
-        </tbody>
-    </table>
-</body>
-</html>
+{{define "title"}}Welcome – WebhookHub{{end}}
+{{define "content"}}
+  <h2>Welcome to WebhookHub</h2>
+  <p>This is your dashboard to view, replay, and manage incoming webhooks.</p>
+  <ul>
+    <li><a href="/dashboard">View Webhook Logs</a></li>
+    <li><a href="/forwarding">Manage Forwarding Rules</a></li>
+  </ul>
+{{end}}

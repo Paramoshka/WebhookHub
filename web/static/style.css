@@ -1,0 +1,72 @@
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #2c3e50, #3498db);
+    color: white;
+    margin: 0;
+    padding: 0;
+}
+
+.navbar {
+    background: #111;
+    color: white;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+}
+
+.navbar a {
+    color: white;
+    margin-right: 1rem;
+    text-decoration: none;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 2rem auto;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 0 16px rgba(0,0,0,0.3);
+}
+
+button {
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.btn-primary {
+    background: #2980b9;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #1c5980;
+}
+
+.btn-edit {
+    background: linear-gradient(to right, #2ecc71, #27ae60);
+    color: white;
+}
+
+.btn-delete {
+    background: linear-gradient(to right, #e74c3c, #c0392b);
+    color: white;
+}
+
+.btn-edit:hover {
+    background: linear-gradient(to right, #27ae60, #1e8449);
+}
+
+.btn-delete:hover {
+    background: linear-gradient(to right, #c0392b, #922b21);
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}

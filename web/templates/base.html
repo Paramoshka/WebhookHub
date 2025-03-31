@@ -1,0 +1,27 @@
+{{define "base"}}
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>{{block "title" .}}WebhookHub{{end}}</title>
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.2"></script>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="navbar">
+  <div>
+    <a href="/" hx-boost="true">Home</a>
+    <a href="/dashboard" hx-boost="true">Webhook Logs</a>
+    <a href="/forwarding" hx-boost="true">Forwarding Rules</a>
+  </div>
+  <form action="/logout" method="POST">
+    <button class="btn-primary" type="submit">Logout</button>
+  </form>
+</div>
+
+<div class="container">
+  {{block "content" .}}{{end}}
+</div>
+</body>
+</html>
+{{end}}
