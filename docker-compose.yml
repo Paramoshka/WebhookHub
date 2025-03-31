@@ -1,0 +1,16 @@
+services:
+  webhookhub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./web:/web:ro
+      - sqlite:/app/data/
+    env_file:
+      - .env
+
+volumes:
+  sqlite:

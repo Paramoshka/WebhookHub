@@ -1,1 +1,3 @@
 webhooks.db
+/data/
+/.env

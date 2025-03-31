@@ -39,8 +39,8 @@ WebhookHub provides a simple, developer-friendly solution to these problems.
 - [x] Store payloads, headers, timestamps in DB
 - [x] Replay webhooks to configured URLs
 - [ ] Retry logic with backoff
-- [ ] Forwarding rules (fan-out, filtering)
-- [ ] Web UI (basic log viewer + replay button)
+- [x] Forwarding rules (fan-out, filtering)
+- [x] Web UI (basic log viewer + replay button)
 - [ ] Auth for protected endpoints (API keys)
 
 ### v0.2+
@@ -67,7 +67,14 @@ WebhookHub provides a simple, developer-friendly solution to these problems.
 ```bash
 git clone https://github.com/yourname/webhookhub
 cd webhookhub
-docker-compose up
+docker-compose up -d --build
+```
+
+```bash
+curl -X POST http://localhost:8080/hook/test \
+  -H "Content-Type: application/json" \
+  -H "X-Webhook-Source: test" \
+  -d '{"event":"test.ping","message":"Hello from test curl"}'
 ```
 
 ## License

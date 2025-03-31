@@ -12,20 +12,4 @@ Planned features:
 
 Forwarding is configured statically in:
 
-```
-internal/config/config.go
-```
-
-Example:
-```go
-func GetForwardTarget(source string) string {
-    switch source {
-    case "stripe":
-        return "http://localhost:9000/stripe"
-    default:
-        return ""
-    }
-}
-```
-
 UI config panel coming soon!

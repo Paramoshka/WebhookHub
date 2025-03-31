@@ -70,3 +70,9 @@ button {
     gap: 0.5rem;
     align-items: center;
 }
+
+.replay-link:hover {
+    color: #3498db;
+    text-decoration: underline;
+    cursor: pointer;
+}

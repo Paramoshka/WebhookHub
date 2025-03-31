@@ -14,7 +14,7 @@ func main() {
 	// Load .env if present
 	_ = godotenv.Load()
 
-	db := storage.InitDB("webhooks.db")
+	db := storage.InitDB("data/webhooks.db")
 	db.InitForwardingTable()
 
 	mux := http.NewServeMux()
