@@ -74,6 +74,17 @@ cd webhookhub
 docker-compose up -d --build
 ```
 
+### 🔐 Generate Session Key
+
+WebhookHub uses a 32-byte secret key to sign session cookies.  
+You must set this in your `.env` file as `SESSION_HASH_KEY`.
+
+To generate a secure random key:
+
+```bash
+openssl rand -hex 32
+```
+
 ```bash
 curl -X POST http://localhost:8080/hook/test \
   -H "Content-Type: application/json" \
