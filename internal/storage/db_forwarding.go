@@ -2,49 +2,54 @@ package storage
 
 import (
 	"log"
+	"webhookhub/internal/model"
+
+	"gorm.io/gorm/clause"
 )
 
-func (d *DB) InitForwardingTable() {
-	stmt := `CREATE TABLE IF NOT EXISTS forwarding_rules (
-        source TEXT PRIMARY KEY,
-        target TEXT
-    );`
-	_, err := d.conn.Exec(stmt)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
+// Save or update forwarding rule
 func (d *DB) SaveForwardingRule(source, target string) {
-	_, err := d.conn.Exec("REPLACE INTO forwarding_rules (source, target) VALUES (?, ?)", source, target)
+	rule := model.ForwardingRule{
+		Source: source,
+		Target: target,
+	}
+	err := d.conn.
+		Clauses(
+			// If source exists to update
+			clause.OnConflict{
+				Columns:   []clause.Column{{Name: "source"}},
+				UpdateAll: true,
+			},
+		).
+		Create(&rule).Error
+
 	if err != nil {
 		log.Println("DB SaveForwardingRule Error:", err)
 	}
 }
 
+// Get All forwarding rules in map[source]target
 func (d *DB) GetForwardingRules() map[string]string {
-	rows, err := d.conn.Query("SELECT source, target FROM forwarding_rules")
+	var rules []model.ForwardingRule
+	err := d.conn.Find(&rules).Error
 	if err != nil {
 		log.Println("DB GetForwardingRules Error:", err)
 		return nil
 	}
-	defer rows.Close()
 
-	rules := map[string]string{}
-	for rows.Next() {
-		var source, target string
-		rows.Scan(&source, &target)
-		rules[source] = target
+	out := map[string]string{}
+	for _, r := range rules {
+		out[r.Source] = r.Target
 	}
-	return rules
+	return out
 }
 
+// Get target by source
 func (d *DB) GetTargetForSource(source string) string {
-	row := d.conn.QueryRow("SELECT target FROM forwarding_rules WHERE source = ?", source)
-	var target string
-	err := row.Scan(&target)
+	var rule model.ForwardingRule
+	err := d.conn.Where("source = ?", source).First(&rule).Error
 	if err != nil {
 		return ""
 	}
-	return target
+	return rule.Target
 }

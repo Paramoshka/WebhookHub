@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 	"webhookhub/internal/forwarder"
@@ -55,5 +56,19 @@ func ReplayWebhook(db *storage.DB) http.HandlerFunc {
 		// возвращаем тот же HTML, что и был
 		w.Header().Set("Content-Type", "text/html")
 		fmt.Fprintf(w, `<span style="color:green;">✅ Replayed</span>`)
+	}
+}
+
+func DeleteWebhook(db *storage.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := r.URL.Query().Get("id")
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			http.Error(w, "Invalid ID", http.StatusBadRequest)
+			return
+		}
+
+		db.DeleteWebhook(id)
+		w.WriteHeader(http.StatusOK)
 	}
 }

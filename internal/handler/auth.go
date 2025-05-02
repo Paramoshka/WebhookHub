@@ -4,9 +4,18 @@ import (
 	"html/template"
 	"net/http"
 	"os"
+	"webhookhub/internal/storage"
+
+	"github.com/gorilla/securecookie"
+	"golang.org/x/crypto/bcrypt"
 )
 
-func Login() http.HandlerFunc {
+var s = securecookie.New(
+	[]byte(os.Getenv("SESSION_KEY")), // hash key
+	nil,                              // block key
+)
+
+func Login(db *storage.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			tmpl := template.Must(template.ParseFiles("web/templates/login.html"))
@@ -15,24 +24,35 @@ func Login() http.HandlerFunc {
 		}
 
 		if r.Method == http.MethodPost {
-			if err := r.ParseForm(); err != nil {
-				http.Error(w, "Invalid login form", http.StatusBadRequest)
+			_ = r.ParseForm()
+			email := r.FormValue("username")
+			password := r.FormValue("password")
+
+			user, ok := db.FindUserByEmail(email)
+			if !ok {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 				return
 			}
 
-			username := r.FormValue("username")
-			password := r.FormValue("password")
-
-			if username == os.Getenv("ADMIN_USER") && password == os.Getenv("ADMIN_PASS") {
-				http.SetCookie(w, &http.Cookie{
-					Name:  "session",
-					Value: "authenticated",
-					Path:  "/",
-				})
-				http.Redirect(w, r, "/", http.StatusSeeOther)
-			} else {
+			err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+			if err != nil {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
 			}
+
+			encoded, _ := s.Encode("session", map[string]string{
+				"user": email,
+			})
+
+			http.SetCookie(w, &http.Cookie{
+				Name:     "session",
+				Value:    encoded,
+				Path:     "/",
+				HttpOnly: true,
+				SameSite: http.SameSiteStrictMode,
+			})
+
+			http.Redirect(w, r, "/", http.StatusSeeOther)
 		}
 	}
 }
@@ -52,10 +72,22 @@ func Logout() http.HandlerFunc {
 func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("session")
-		if err != nil || cookie.Value != "authenticated" {
+		if err != nil {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
+
+		session := make(map[string]string)
+		if err := s.Decode("session", cookie.Value, &session); err != nil {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+
+		if session["user"] == "" {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+
 		next(w, r)
 	}
 }

@@ -10,7 +10,7 @@
   </thead>
   <tbody>
     {{range .Webhooks}}
-    <tr>
+    <tr id="webhook-{{.ID}}">
       <td>{{.ID}}</td>
       <td>{{.Source}}</td>
       <td>{{.ReceivedAt}}</td>
@@ -22,14 +22,22 @@
           hx-target="this"
           hx-trigger="click"
           class="replay-link"
-        >
-          🔁 Retry
-        </a>
+        >🔁 Retry</a>
 
         |
         <a href="/partials/webhook/{{.ID}}" target="_blank">🔍 Inspect</a>
+
+        |
+        <a
+          href="#"
+          onclick="if(confirm('Delete this webhook?')) { this.setAttribute('hx-post', '/api/webhooks/delete?id={{.ID}}'); }"
+          hx-post="/api/webhooks/delete?id={{.ID}}"
+          hx-target="#webhook-{{.ID}}"
+          hx-swap="outerHTML"
+          class="replay-link"
+        >🗑 Delete</a>
       </td>    
     </tr>
-  {{end}}  
+    {{end}}  
   </tbody>
 </table>

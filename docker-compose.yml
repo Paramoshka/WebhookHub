@@ -1,4 +1,18 @@
+version: "3.9"
+
 services:
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
   webhookhub:
     build:
       context: .
@@ -7,10 +21,11 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./web:/web:ro
-      - sqlite:/app/data/
+      - ./web:/app/web:ro
     env_file:
       - .env
+    depends_on:
+      - db
 
 volumes:
-  sqlite:
+  pgdata:

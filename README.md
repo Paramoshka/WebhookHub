@@ -21,27 +21,28 @@ WebhookHub provides a simple, developer-friendly solution to these problems.
 
 ## ✨ Core Features (MVP)
 
-- ✅ Receive incoming webhooks via a public HTTP endpoint
-- ✅ Log all requests with payloads and headers
-- ✅ Replay any webhook manually
-- ✅ Forward webhooks to one or more configured destinations
-- ✅ Basic filtering and routing logic
-- ✅ SQLite or Postgres storage backend
-- ✅ Web UI for browsing and replaying events
-- ✅ Docker support for easy local/dev setup
+- ✅ Receive webhooks at `/hook/:source`
+- ✅ Log full payloads, headers, timestamps
+- ✅ Replay any webhook via Web UI
+- ✅ Forwarding rules per source (fan-out, routing)
+- ✅ Web dashboard with filters, pagination
+- ✅ Secure login (admin account)
+- ✅ Postgres + GORM backend
+- ✅ Dockerized and ready to deploy
 
 ---
 
 ## 📌 Roadmap
 
 ### MVP - v0.1
-- [x] Accept and log webhooks via `/hook/:source`
-- [x] Store payloads, headers, timestamps in DB
-- [x] Replay webhooks to configured URLs
-- [ ] Retry logic with backoff
-- [x] Forwarding rules (fan-out, filtering)
-- [x] Web UI (basic log viewer + replay button)
-- [ ] Auth for protected endpoints (API keys)
+- [x] Accept and log webhooks
+- [x] View logs with filters and pagination
+- [x] Replay webhooks on demand
+- [x] Add/edit/delete forwarding rules
+- [x] Delete individual webhook logs
+- [x] Admin auth (session cookie + bcrypt)
+- [x] PostgreSQL + GORM backend
+- [x] Docker + compose setup
 
 ### v0.2+
 - [ ] HMAC signature verification (e.g., Stripe-style)
@@ -55,10 +56,13 @@ WebhookHub provides a simple, developer-friendly solution to these problems.
 
 ## 🛠️ Tech Stack
 
-- **Language:** Go
-- **Database:** SQLite (default), Postgres (optional)
-- **UI:** HTML templates or optional React SPA
-- **Container:** Docker / docker-compose
+| Component     | Technology        |
+|---------------|-------------------|
+| Language      | Go                |
+| Database      | PostgreSQL (via GORM) |
+| UI            | HTML + HTMX       |
+| Auth          | SecureCookie + bcrypt |
+| Container     | Docker + Compose  |
 
 ---
 

@@ -3,42 +3,61 @@ package main
 import (
 	"log"
 	"net/http"
-
-	"github.com/joho/godotenv"
+	"os"
 
 	"webhookhub/internal/handler"
 	"webhookhub/internal/storage"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
-	// Load .env if present
-	_ = godotenv.Load()
+	// Load .env
+	if err := godotenv.Load(); err != nil {
+		log.Println("⚠️ .env file not found or failed to load, continuing...")
+	}
 
-	db := storage.InitDB("data/webhooks.db")
-	db.InitForwardingTable()
+	// Init DB (PostgreSQL via GORM)
+	db := storage.InitDB()
 
+	// Set up HTTP mux
 	mux := http.NewServeMux()
 
-	// Public routes
+	// Static files
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
+
+	// Auth
+	mux.HandleFunc("/login", handler.Login(db))
 	mux.HandleFunc("/logout", handler.Logout())
-	mux.HandleFunc("/login", handler.Login())
-	// Protected routes
-	mux.HandleFunc("/", handler.RequireAuth(handler.ServeIndex(db)))
-	mux.HandleFunc("/dashboard", handler.RequireAuth(handler.DashboardUI(db)))
-	mux.HandleFunc("/api/webhooks", handler.RequireAuth(handler.ListWebhooks(db)))
-	mux.HandleFunc("/api/webhooks/replay", handler.RequireAuth(handler.ReplayWebhook(db)))
-	mux.HandleFunc("/partials/webhooks", handler.RequireAuth(handler.WebhookPartial(db)))
-	mux.HandleFunc("/partials/webhook/", handler.RequireAuth(handler.InspectWebhook(db)))
-	mux.HandleFunc("/forwarding", handler.RequireAuth(handler.ForwardingUI(db)))
-	mux.HandleFunc("/forwarding/save", handler.RequireAuth(handler.SaveForwardingRule(db)))
-	mux.HandleFunc("/forwarding/edit", handler.RequireAuth(handler.EditForwardingForm(db)))
-	mux.HandleFunc("/forwarding/update", handler.RequireAuth(handler.UpdateForwardingRule(db)))
-	mux.HandleFunc("/forwarding/delete", handler.RequireAuth(handler.DeleteForwardingRule(db)))
 
-	// Listen
-	mux.HandleFunc("/hook/", handler.ReceiveWebhook(db)) // Optionally protect this too
+	// Public hook endpoint
+	mux.HandleFunc("/hook/", handler.ReceiveWebhook(db)) // Optionally add auth later
 
-	log.Println("Listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", mux))
+	// Protected
+	protected := func(h http.HandlerFunc) http.HandlerFunc {
+		return handler.RequireAuth(h)
+	}
+
+	mux.HandleFunc("/", protected(handler.ServeIndex(db)))
+	mux.HandleFunc("/dashboard", protected(handler.DashboardUI(db)))
+	mux.HandleFunc("/api/webhooks", protected(handler.ListWebhooks(db)))
+	mux.HandleFunc("/api/webhooks/replay", protected(handler.ReplayWebhook(db)))
+	mux.HandleFunc("/api/webhooks/delete", handler.RequireAuth(handler.DeleteWebhook(db)))
+	mux.HandleFunc("/partials/webhooks", protected(handler.WebhookPartial(db)))
+	mux.HandleFunc("/partials/webhook/", protected(handler.InspectWebhook(db)))
+
+	mux.HandleFunc("/forwarding", protected(handler.ForwardingUI(db)))
+	mux.HandleFunc("/forwarding/save", protected(handler.SaveForwardingRule(db)))
+	mux.HandleFunc("/forwarding/edit", protected(handler.EditForwardingForm(db)))
+	mux.HandleFunc("/forwarding/update", protected(handler.UpdateForwardingRule(db)))
+	mux.HandleFunc("/forwarding/delete", protected(handler.DeleteForwardingRule(db)))
+
+	// Start server
+	addr := ":8080"
+	if port := os.Getenv("PORT"); port != "" {
+		addr = ":" + port
+	}
+
+	log.Println("🚀 Listening on", addr)
+	log.Fatal(http.ListenAndServe(addr, mux))
 }
