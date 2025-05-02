@@ -81,6 +81,9 @@ curl -X POST http://localhost:8080/hook/test \
   -d '{"event":"test.ping","message":"Hello from test curl"}'
 ```
 
-## License
+## 📄 License
 
-MIT — free to use, modify, and deploy.
+This project is licensed under AGPL-3.0 for self-hosted and open-source use.
+
+Commercial SaaS deployment or integration into paid platforms requires a separate license. Contact [ivan.parfenov.42a@gmail.com] for details.
+
