@@ -1,47 +1,71 @@
 {{define "title"}}Forwarding Rules – WebhookHub{{end}}
 
 {{define "content"}}
-  <h2>Forwarding Rules</h2>
+<h2>Forwarding Rules</h2>
 
-  <form method="POST" action="/forwarding/save">
-    <input type="text" name="source" placeholder="Webhook source (e.g., stripe)" required>
-    <input type="text" name="target" placeholder="Target URL (http://...)" required>
-    <button class="btn-primary" type="submit">Add Rule</button>
-  </form>
+<form method="POST" action="/forwarding/save" class="rule-form">
+  <input type="text" name="source" placeholder="Webhook source (e.g., stripe)" required>
+  <input type="url"  name="target" placeholder="Target URL (https://...)" required>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Source</th>
-        <th>Target URL</th>
-        <th>Action</th>
-      </tr>
-    </thead>
-    <tbody>
-      {{range $source, $target := .}}
-      <tr>
-        <td>{{$source}}</td>
-        <td>{{$target}}</td>
-        <td>
-          <div class="action-buttons">
-            <button
-              class="btn-edit"
-              hx-get="/forwarding/edit?source={{$source}}"
-              hx-target="#edit-form"
-              hx-swap="innerHTML"
-              type="button"
-            >Edit</button>
+  <!-- (Stripe-style) -->
+  <input type="password"
+         name="verify_secret"
+         placeholder="Stripe signing secret (whsec_...) — optional"
+         autocomplete="off" data-lpignore="true">
+  <input type="text"
+         name="verify_header"
+         placeholder="Signature header (default: Stripe-Signature)">
+  <input type="number"
+         name="tolerance"
+         placeholder="Time tolerance, seconds (default: 300)"
+         min="0" step="1">
 
-            <form method="POST" action="/forwarding/delete" onsubmit="return confirm('Delete this rule?')">
-              <input type="hidden" name="source" value="{{$source}}">
-              <button class="btn-delete" type="submit">Delete</button>
-            </form>
-          </div>
-        </td>
-      </tr>
-      {{end}}
-    </tbody>
-  </table>
+  <!-- Sign outgoing -->
+  <input type="password"
+         name="outgoing_secret"
+         placeholder="Sign outgoing with this secret (optional)"
+         autocomplete="off" data-lpignore="true">
 
-  <div id="edit-form" style="margin-top: 2rem;"></div>
+  <button class="btn-primary" type="submit">Add Rule</button>
+</form>
+
+<table>
+  <thead>
+  <tr>
+    <th>Source</th>
+    <th>Target URL</th>
+    <th>Incoming HMAC</th>
+    <th>Outgoing HMAC</th>
+    <th>Action</th>
+  </tr>
+  </thead>
+  <tbody>
+  {{range .}}
+  <tr>
+    <td>{{.Source}}</td>
+    <td>{{.Target}}</td>
+    <td>{{if .HasVerifySecret}}✓ ({{.VerifyHeader}}){{else}}—{{end}}</td>
+    <td>{{if .HasOutgoingSign}}✓{{else}}—{{end}}</td>
+    <td>
+      <div class="action-buttons">
+        <button
+                class="btn-edit"
+                hx-get="/forwarding/edit?source={{.Source}}"
+                hx-target="#edit-form"
+                hx-swap="innerHTML"
+                type="button"
+        >Edit</button>
+
+        <form method="POST" action="/forwarding/delete" onsubmit="return confirm('Delete this rule?')">
+          <input type="hidden" name="source" value="{{.Source}}">
+          <button class="btn-delete" type="submit">Delete</button>
+        </form>
+      </div>
+    </td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+
+<div id="edit-form" style="margin-top: 2rem;"></div>
 {{end}}
