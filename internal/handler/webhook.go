@@ -27,8 +27,8 @@ func ReceiveWebhook(db *storage.DB) http.HandlerFunc {
 			Status:     "pending",
 		}
 
-		db.Save(webhook)
-		go forwarder.Forward(db, webhook)
+		db.Save(&webhook)
+		go forwarder.Forward(db, &webhook)
 
 		w.WriteHeader(http.StatusAccepted)
 		w.Write([]byte("Received"))
@@ -51,7 +51,7 @@ func ReplayWebhook(db *storage.DB) http.HandlerFunc {
 			return
 		}
 
-		go forwarder.Forward(db, hook)
+		go forwarder.Forward(db, &hook)
 
 		// возвращаем тот же HTML, что и был
 		w.Header().Set("Content-Type", "text/html")

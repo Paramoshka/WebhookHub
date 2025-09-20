@@ -71,7 +71,7 @@ func InitDB() *DB {
 }
 
 // Save webhook
-func (d *DB) Save(h model.Webhook) {
+func (d *DB) Save(h *model.Webhook) {
 	if err := d.conn.Create(&h).Error; err != nil {
 		log.Println("DB Save Error:", err)
 	}
@@ -89,6 +89,10 @@ func (d *DB) FindByID(id string) (model.Webhook, bool) {
 	var h model.Webhook
 	result := d.conn.First(&h, id)
 	return h, result.Error == nil
+}
+
+func (d *DB) UpdateResponseFromForward(id int, resp []byte) {
+	d.conn.Model(&model.Webhook{}).Where("id = ?", id).Update("response", resp)
 }
 
 // Update webhook status

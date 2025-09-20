@@ -7,6 +7,7 @@ type Webhook struct {
 	Source     string
 	Headers    string
 	Payload    []byte
+	Response   []byte
 	ReceivedAt time.Time
 	Status     string
 }
