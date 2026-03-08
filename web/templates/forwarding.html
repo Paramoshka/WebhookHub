@@ -1,32 +1,80 @@
 {{define "title"}}Forwarding Rules – WebhookHub{{end}}
 
 {{define "content"}}
+<style>
+  .rule-form{display:grid;gap:1rem;max-width:960px}
+  .section{border:1px solid #e5e7eb;border-radius:12px;padding:1rem}
+  .section-title{font-weight:600;font-size:0.95rem;margin-bottom:0.5rem;display:flex;align-items:center;gap:.5rem}
+  .muted{color:#6b7280;font-weight:400}
+  .fields{display:grid;gap:.75rem}
+  .grid-2{grid-template-columns:1fr 1fr}
+  .grid-3{grid-template-columns:1fr 1fr 1fr}
+  @media (max-width: 720px){ .grid-2,.grid-3{grid-template-columns:1fr} }
+
+  .rule-form input[type="text"],
+  .rule-form input[type="url"],
+  .rule-form input[type="number"],
+  .rule-form input[type="password"]{
+    width:100%;padding:.6rem .75rem;border:1px solid #d1d5db;border-radius:10px
+  }
+  .rule-form .actions{display:flex;justify-content:flex-end}
+  .btn-primary{padding:.6rem 1rem;border-radius:10px;border:0;background:#111827;color:#fff;cursor:pointer}
+  .btn-edit,.btn-delete{padding:.4rem .65rem;border-radius:8px;border:1px solid #d1d5db;background:#fff;cursor:pointer}
+  .btn-delete{border-color:#fecaca}
+  .action-buttons{display:flex;gap:.5rem;align-items:center}
+  table{width:100%;border-collapse:separate;border-spacing:0 8px}
+  thead th{font-weight:600;text-align:left;color:#374151}
+  tbody tr{background:#fff;border:1px solid #e5e7eb}
+  td,th{padding:.6rem .75rem;vertical-align:top}
+  td:nth-child(2){word-break:break-all}
+</style>
+
 <h2>Forwarding Rules</h2>
 
 <form method="POST" action="/forwarding/save" class="rule-form">
-  <input type="text" name="source" placeholder="Webhook source (e.g., stripe)" required>
-  <input type="url"  name="target" placeholder="Target URL (https://...)" required>
 
-  <!-- (Stripe-style) -->
-  <input type="password"
-         name="verify_secret"
-         placeholder="Stripe signing secret (whsec_...) — optional"
-         autocomplete="off" data-lpignore="true">
-  <input type="text"
-         name="verify_header"
-         placeholder="Signature header (default: Stripe-Signature)">
-  <input type="number"
-         name="tolerance"
-         placeholder="Time tolerance, seconds (default: 300)"
-         min="0" step="1">
+  <div class="section">
+    <div class="section-title">Routing</div>
+    <div class="fields grid-2">
+      <input type="text" name="source" placeholder="Webhook source (e.g., stripe)" required>
+      <input type="url"  name="target" placeholder="Target URL (https://...)" required>
+    </div>
+  </div>
 
-  <!-- Sign outgoing -->
-  <input type="password"
-         name="outgoing_secret"
-         placeholder="Sign outgoing with this secret (optional)"
-         autocomplete="off" data-lpignore="true">
+  <div class="section">
+    <div class="section-title">Incoming HMAC <span class="muted">(Stripe-style, опционально)</span></div>
+    <div class="fields">
+      <input type="password"
+             name="verify_secret"
+             placeholder="Stripe signing secret (whsec_...)"
+             autocomplete="off" data-lpignore="true">
+      <div class="fields grid-2">
+        <input type="text"
+               name="verify_header"
+               placeholder="Signature header (default: Stripe-Signature)">
+        <input type="number"
+               name="tolerance"
+               placeholder="Time tolerance, seconds (default: 300)"
+               min="0" step="1">
+      </div>
+    </div>
+  </div>
 
-  <button class="btn-primary" type="submit">Add Rule</button>
+  <div class="section">
+    <div class="section-title">Sign outgoing <span class="muted">(опционально)</span></div>
+    <div class="fields grid-2">
+      <input type="password"
+             name="outgoing_secret"
+             placeholder="Secret to sign outgoing deliveries"
+             autocomplete="off" data-lpignore="true">
+      <input type="text" disabled
+             placeholder="Header: X-WebhookHub-Signature (t=..., v1=...)">
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn-primary" type="submit">Add Rule</button>
+  </div>
 </form>
 
 <table>
