@@ -1,16 +1,62 @@
-<div style="background: rgba(255,255,255,0.1); padding: 1.5rem; border-radius: 12px; box-shadow: 0 0 8px rgba(0,0,0,0.2);">
-  <h3 style="margin-top: 0; color: #fff;">Edit Forwarding Rule</h3>
+<div style="margin-top: 2rem; border: 1px solid #e5e7eb; border-radius: 12px; padding: 1.5rem; background: #fff;">
+  <h3 style="margin-top: 0;">Edit Forwarding Rule</h3>
   <form method="POST" action="/forwarding/update" style="display: flex; flex-direction: column; gap: 1rem;">
     <input type="hidden" name="source" value="{{.Source}}">
-    <label style="color:#ccc;">
+    <label>
       Source: <strong>{{.Source}}</strong>
     </label>
     <label>
-      <input type="text" name="target" value="{{.Target}}" required
-             style="padding: 0.6rem; border-radius: 8px; border: none; width: 100%; font-size: 1rem;">
+      <div style="margin-bottom: 0.4rem;">Target URL</div>
+      <input type="url" name="target" value="{{.Target}}" required
+             style="padding: 0.6rem; border-radius: 8px; border: 1px solid #d1d5db; width: 100%; font-size: 1rem;">
     </label>
+
+    <div style="display: flex; flex-direction: column; gap: 0.75rem; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1rem;">
+      <div style="font-weight: 600;">Incoming HMAC</div>
+      <label>
+        <div style="margin-bottom: 0.4rem;">New signing secret</div>
+        <input type="password" name="verify_secret" placeholder="{{if .VerifySecret}}Leave blank to keep current secret{{else}}Stripe signing secret (whsec_...){{end}}"
+               autocomplete="off" data-lpignore="true"
+               style="padding: 0.6rem; border-radius: 8px; border: 1px solid #d1d5db; width: 100%; font-size: 1rem;">
+      </label>
+      <label>
+        <div style="margin-bottom: 0.4rem;">Signature header</div>
+        <input type="text" name="verify_header" value="{{.VerifyHeader}}"
+               placeholder="Stripe-Signature"
+               style="padding: 0.6rem; border-radius: 8px; border: 1px solid #d1d5db; width: 100%; font-size: 1rem;">
+      </label>
+      <label>
+        <div style="margin-bottom: 0.4rem;">Tolerance, seconds</div>
+        <input type="number" name="tolerance" value="{{if gt .ToleranceSeconds 0}}{{.ToleranceSeconds}}{{end}}" min="0" step="1"
+               placeholder="{{if .VerifySecret}}Leave blank to keep current{{else}}300{{end}}"
+               style="padding: 0.6rem; border-radius: 8px; border: 1px solid #d1d5db; width: 100%; font-size: 1rem;">
+      </label>
+      {{if .VerifySecret}}
+      <label style="display: flex; gap: 0.5rem; align-items: center;">
+        <input type="checkbox" name="clear_verify_secret" value="1">
+        Clear incoming HMAC secret
+      </label>
+      {{end}}
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 0.75rem; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1rem;">
+      <div style="font-weight: 600;">Sign outgoing delivery</div>
+      <label>
+        <div style="margin-bottom: 0.4rem;">New outgoing secret</div>
+        <input type="password" name="outgoing_secret" placeholder="{{if .OutgoingSecret}}Leave blank to keep current secret{{else}}Secret to sign outgoing deliveries{{end}}"
+               autocomplete="off" data-lpignore="true"
+               style="padding: 0.6rem; border-radius: 8px; border: 1px solid #d1d5db; width: 100%; font-size: 1rem;">
+      </label>
+      {{if .OutgoingSecret}}
+      <label style="display: flex; gap: 0.5rem; align-items: center;">
+        <input type="checkbox" name="clear_outgoing_secret" value="1">
+        Clear outgoing HMAC secret
+      </label>
+      {{end}}
+      <div style="color: #6b7280; font-size: 0.9rem;">Header: X-WebhookHub-Signature (t=..., v1=...)</div>
+    </div>
     <button type="submit"
-            style="padding: 0.7rem; background: linear-gradient(to right, #2ecc71, #27ae60); border: none; border-radius: 8px; color: white; font-size: 1rem;">
+            style="padding: 0.7rem; background: #111827; border: none; border-radius: 8px; color: white; font-size: 1rem;">
       Save Changes
     </button>
   </form>

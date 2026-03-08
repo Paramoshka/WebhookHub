@@ -25,6 +25,7 @@ WebhookHub provides a simple, developer-friendly solution to these problems.
 - ✅ Log full payloads, headers, timestamps
 - ✅ Replay any webhook via Web UI
 - ✅ Forwarding rules per source (fan-out, routing)
+- ✅ Optional incoming/outgoing HMAC signing (Stripe-style header format)
 - ✅ Web dashboard with filters, pagination
 - ✅ Secure login (admin account)
 - ✅ Postgres + GORM backend
@@ -45,7 +46,7 @@ WebhookHub provides a simple, developer-friendly solution to these problems.
 - [x] Docker + compose setup
 
 ### v0.2+
-- [ ] HMAC signature verification (e.g., Stripe-style)
+- [x] HMAC signature verification (e.g., Stripe-style)
 - [ ] Delivery status tracking + metrics
 - [ ] Dead-letter queue
 - [ ] Ngrok/localtunnel integration (for local dev)
@@ -97,4 +98,3 @@ curl -X POST http://localhost:8080/hook/test \
 This project is licensed under AGPL-3.0 for self-hosted and open-source use.
 
 Commercial SaaS deployment or integration into paid platforms requires a separate license. Contact [ivan.parfenov.42a@gmail.com] for details.
-
