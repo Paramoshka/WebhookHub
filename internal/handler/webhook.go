@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 	"webhookhub/internal/forwarder"
+	"webhookhub/internal/hmacsig"
 	"webhookhub/internal/model"
 	"webhookhub/internal/storage"
 )
@@ -16,14 +17,37 @@ import (
 func ReceiveWebhook(db *storage.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		source := strings.TrimPrefix(r.URL.Path, "/hook/")
-		payload, _ := io.ReadAll(r.Body)
-		headers, _ := json.Marshal(r.Header)
+		payload, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Failed to read request body", http.StatusBadRequest)
+			return
+		}
+
+		now := time.Now()
+		if rule, found := db.GetForwardingRule(source); found && rule.VerifySecret != "" {
+			headerName := rule.VerifyHeader
+			if headerName == "" {
+				headerName = hmacsig.DefaultIncomingHeader
+			}
+			signatureHeader := r.Header.Get(headerName)
+			tolerance := time.Duration(rule.ToleranceSeconds) * time.Second
+			if err := hmacsig.VerifyHeader(rule.VerifySecret, signatureHeader, payload, now, tolerance); err != nil {
+				http.Error(w, "Invalid signature", http.StatusUnauthorized)
+				return
+			}
+		}
+
+		headers, err := json.Marshal(r.Header)
+		if err != nil {
+			http.Error(w, "Failed to serialize headers", http.StatusInternalServerError)
+			return
+		}
 
 		webhook := model.Webhook{
 			Source:     source,
 			Headers:    string(headers),
 			Payload:    payload,
-			ReceivedAt: time.Now(),
+			ReceivedAt: now,
 			Status:     "pending",
 		}
 
@@ -31,7 +55,7 @@ func ReceiveWebhook(db *storage.DB) http.HandlerFunc {
 		go forwarder.Forward(db, &webhook)
 
 		w.WriteHeader(http.StatusAccepted)
-		w.Write([]byte("Received"))
+		_, _ = w.Write([]byte("Received"))
 	}
 }
 

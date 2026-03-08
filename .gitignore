@@ -1,3 +1,4 @@
 webhooks.db
 /data/
 /.env
+/.gocache/

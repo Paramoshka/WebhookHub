@@ -92,8 +92,8 @@
   <tr>
     <td>{{.Source}}</td>
     <td>{{.Target}}</td>
-    <td>{{if .HasVerifySecret}}✓ ({{.VerifyHeader}}){{else}}—{{end}}</td>
-    <td>{{if .HasOutgoingSign}}✓{{else}}—{{end}}</td>
+    <td>{{if .VerifySecret}}✓ ({{if .VerifyHeader}}{{.VerifyHeader}}{{else}}Stripe-Signature{{end}}, {{if gt .ToleranceSeconds 0}}{{.ToleranceSeconds}}s{{else}}no time check{{end}}){{else}}—{{end}}</td>
+    <td>{{if .OutgoingSecret}}✓{{else}}—{{end}}</td>
     <td>
       <div class="action-buttons">
         <button

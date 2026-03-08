@@ -8,11 +8,7 @@ import (
 )
 
 // Save or update forwarding rule
-func (d *DB) SaveForwardingRule(source, target string) {
-	rule := model.ForwardingRule{
-		Source: source,
-		Target: target,
-	}
+func (d *DB) SaveForwardingRule(rule model.ForwardingRule) {
 	err := d.conn.
 		Clauses(
 			// If source exists to update
@@ -28,28 +24,23 @@ func (d *DB) SaveForwardingRule(source, target string) {
 	}
 }
 
-// Get All forwarding rules in map[source]target
-func (d *DB) GetForwardingRules() map[string]string {
+// Get all forwarding rules ordered by source
+func (d *DB) GetForwardingRules() []model.ForwardingRule {
 	var rules []model.ForwardingRule
-	err := d.conn.Find(&rules).Error
+	err := d.conn.Order("source asc").Find(&rules).Error
 	if err != nil {
 		log.Println("DB GetForwardingRules Error:", err)
 		return nil
 	}
-
-	out := map[string]string{}
-	for _, r := range rules {
-		out[r.Source] = r.Target
-	}
-	return out
+	return rules
 }
 
-// Get target by source
-func (d *DB) GetTargetForSource(source string) string {
+// Get rule by source
+func (d *DB) GetForwardingRule(source string) (model.ForwardingRule, bool) {
 	var rule model.ForwardingRule
 	err := d.conn.Where("source = ?", source).First(&rule).Error
 	if err != nil {
-		return ""
+		return model.ForwardingRule{}, false
 	}
-	return rule.Target
+	return rule, true
 }
