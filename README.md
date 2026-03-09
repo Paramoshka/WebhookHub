@@ -70,7 +70,7 @@ WebhookHub provides a simple, developer-friendly solution to these problems.
 ## 📦 Getting Started
 
 ```bash
-git clone https://github.com/yourname/webhookhub
+git clone https://github.com/Paramoshka/WebhookHub.git
 cd webhookhub
 docker-compose up -d --build
 ```
