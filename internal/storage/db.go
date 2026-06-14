@@ -3,6 +3,7 @@ package storage
 import (
 	"log"
 	"os"
+	"time"
 
 	"webhookhub/internal/model"
 
@@ -95,21 +96,86 @@ func (d *DB) UpdateResponseFromForward(id int, resp []byte) {
 	d.conn.Model(&model.Webhook{}).Where("id = ?", id).Update("response", resp)
 }
 
-// Update webhook status
-func (d *DB) UpdateStatus(id int, status string) {
-	d.conn.Model(&model.Webhook{}).Where("id = ?", id).Update("status", status)
+func (d *DB) ResetWebhookDeliveryState(id int) {
+	if err := d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(map[string]any{
+		"status":             "pending",
+		"response":           []byte(nil),
+		"failure_count":      0,
+		"dead_lettered_at":   nil,
+		"dead_letter_reason": "",
+	}).Error; err != nil {
+		log.Println("DB ResetWebhookDeliveryState Error:", err)
+	}
 }
 
-func (d *DB) ResetWebhookDeliveryState(id int) {
-	d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(map[string]any{
-		"status":   "pending",
-		"response": []byte(nil),
-	})
+func (d *DB) MarkWebhookDeliverySuccess(id int) {
+	if err := d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(map[string]any{
+		"status":             "success",
+		"failure_count":      0,
+		"dead_lettered_at":   nil,
+		"dead_letter_reason": "",
+	}).Error; err != nil {
+		log.Println("DB MarkWebhookDeliverySuccess Error:", err)
+	}
+}
+
+func (d *DB) MarkWebhookDeliverySkipped(id int) {
+	if err := d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(map[string]any{
+		"status":             "skipped",
+		"failure_count":      0,
+		"dead_lettered_at":   nil,
+		"dead_letter_reason": "",
+	}).Error; err != nil {
+		log.Println("DB MarkWebhookDeliverySkipped Error:", err)
+	}
+}
+
+func (d *DB) MarkWebhookDeliveryFailed(id int, reason string, maxFailures int) string {
+	var webhook model.Webhook
+	if err := d.conn.First(&webhook, id).Error; err != nil {
+		log.Println("DB MarkWebhookDeliveryFailed Load Error:", err)
+		return "failed"
+	}
+
+	nextFailureCount := webhook.FailureCount + 1
+	updates := map[string]any{
+		"failure_count": nextFailureCount,
+	}
+
+	status := "failed"
+	if nextFailureCount >= maxFailures {
+		now := time.Now()
+		status = "dead_lettered"
+		updates["status"] = status
+		updates["dead_lettered_at"] = &now
+		updates["dead_letter_reason"] = reason
+	} else {
+		updates["status"] = status
+		updates["dead_lettered_at"] = nil
+		updates["dead_letter_reason"] = ""
+	}
+
+	if err := d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(updates).Error; err != nil {
+		log.Println("DB MarkWebhookDeliveryFailed Update Error:", err)
+		return "failed"
+	}
+
+	return status
 }
 
 // Delete webhook
 func (d *DB) DeleteWebhook(id int) {
-	d.conn.Delete(&model.Webhook{}, id)
+	if err := d.conn.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("webhook_id = ?", id).Delete(&model.DeliveryAttempt{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Delete(&model.Webhook{}, id).Error; err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		log.Println("DB DeleteWebhook Error:", err)
+	}
 }
 
 // Delete forwarding rule

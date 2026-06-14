@@ -50,8 +50,6 @@ func WebhookPartial(db *storage.DB) http.HandlerFunc {
 			DisableNext: page*pageSize >= total,
 		}
 
-		//log.Printf("WebhookPartial filters: source=%s, status=%s, page=%d", source, status, page)
-
 		tmpl.Execute(w, data)
 	}
 }

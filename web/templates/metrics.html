@@ -20,7 +20,57 @@
       <div class="metric-label">Success Rate</div>
       <div class="metric-value">{{printf "%.1f%%" .SuccessRate}}</div>
     </div>
+    <div class="metric-card">
+      <div class="metric-label">In DLQ</div>
+      <div class="metric-value">{{.DeadLetterCount}}</div>
+    </div>
   </div>
+
+  <div class="section-header">
+    <div>
+      <span class="eyebrow">Recovery</span>
+      <h2>Dead-Letter Queue</h2>
+    </div>
+  </div>
+  {{if .RecentDeadLetters}}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Webhook</th>
+        <th>Source</th>
+        <th>Failures</th>
+        <th>Dead-Lettered At</th>
+        <th>Reason</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .RecentDeadLetters}}
+      <tr>
+        <td class="table-id">#{{.ID}}</td>
+        <td>{{.Source}}</td>
+        <td>{{.FailureCount}}</td>
+        <td>{{if .DeadLetteredAt}}{{.DeadLetteredAt}}{{else}}-{{end}}</td>
+        <td>{{if .DeadLetterReason}}{{.DeadLetterReason}}{{else}}-{{end}}</td>
+        <td>
+          <div class="table-actions">
+            <a
+              hx-post="/api/webhooks/replay?id={{.ID}}"
+              hx-swap="outerHTML"
+              hx-target="this"
+              hx-trigger="click"
+              class="action-link"
+            >Requeue</a>
+            <a href="/partials/webhook/{{.ID}}" target="_blank" class="action-link">Inspect</a>
+          </div>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="metrics-empty">Dead-letter queue is empty.</p>
+  {{end}}
 
   <div class="section-header">
     <div>

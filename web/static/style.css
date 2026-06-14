@@ -530,6 +530,11 @@ button:focus-visible {
     background: rgba(199, 212, 225, 0.1);
 }
 
+.status-dead_lettered {
+    color: #ffc1b9;
+    background: rgba(255, 127, 115, 0.2);
+}
+
 .metrics-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

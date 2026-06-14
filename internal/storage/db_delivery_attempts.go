@@ -8,15 +8,17 @@ import (
 )
 
 type DeliveryMetrics struct {
-	TotalWebhooks   int64
-	TotalAttempts   int64
-	SuccessCount    int64
-	FailedCount     int64
-	PendingCount    int64
-	SkippedCount    int64
-	SuccessRate     float64
-	RecentFailures  []model.DeliveryAttempt
-	SourceBreakdown []SourceDeliveryMetric
+	TotalWebhooks     int64
+	TotalAttempts     int64
+	SuccessCount      int64
+	FailedCount       int64
+	PendingCount      int64
+	SkippedCount      int64
+	DeadLetterCount   int64
+	SuccessRate       float64
+	RecentFailures    []model.DeliveryAttempt
+	RecentDeadLetters []model.Webhook
+	SourceBreakdown   []SourceDeliveryMetric
 }
 
 type SourceDeliveryMetric struct {
@@ -90,6 +92,9 @@ func (d *DB) DeliveryMetrics() DeliveryMetrics {
 	if err := d.conn.Model(&model.DeliveryAttempt{}).Where("status = ?", "skipped").Count(&metrics.SkippedCount).Error; err != nil {
 		log.Println("DB DeliveryMetrics SkippedCount Error:", err)
 	}
+	if err := d.conn.Model(&model.Webhook{}).Where("status = ?", "dead_lettered").Count(&metrics.DeadLetterCount).Error; err != nil {
+		log.Println("DB DeliveryMetrics DeadLetterCount Error:", err)
+	}
 
 	completedAttempts := metrics.SuccessCount + metrics.FailedCount
 	if completedAttempts > 0 {
@@ -98,6 +103,9 @@ func (d *DB) DeliveryMetrics() DeliveryMetrics {
 
 	if err := d.conn.Where("status = ?", "failed").Order("started_at desc").Limit(5).Find(&metrics.RecentFailures).Error; err != nil {
 		log.Println("DB DeliveryMetrics RecentFailures Error:", err)
+	}
+	if err := d.conn.Where("status = ?", "dead_lettered").Order("dead_lettered_at desc").Limit(10).Find(&metrics.RecentDeadLetters).Error; err != nil {
+		log.Println("DB DeliveryMetrics RecentDeadLetters Error:", err)
 	}
 
 	var rows []sourceStatusCount

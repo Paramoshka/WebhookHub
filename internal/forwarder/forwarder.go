@@ -16,6 +16,7 @@ import (
 var timeout = 5 * time.Second
 
 const maxBody = int64(1 << 20)
+const maxFailedAttempts = 3
 
 func Forward(db *storage.DB, h *model.Webhook) {
 	startedAt := time.Now()
@@ -36,8 +37,15 @@ func Forward(db *storage.DB, h *model.Webhook) {
 
 	defer func() {
 		db.UpdateResponseFromForward(int(h.ID), responseBody)
-		db.UpdateStatus(int(h.ID), status)
 		db.FinishDeliveryAttempt(attemptID, status, httpStatus, errorMessage, time.Since(startedAt).Milliseconds())
+		switch status {
+		case "success":
+			db.MarkWebhookDeliverySuccess(int(h.ID))
+		case "skipped":
+			db.MarkWebhookDeliverySkipped(int(h.ID))
+		default:
+			status = db.MarkWebhookDeliveryFailed(int(h.ID), errorMessage, maxFailedAttempts)
+		}
 	}()
 
 	if !found || rule.Target == "" {

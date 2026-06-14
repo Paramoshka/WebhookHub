@@ -16,7 +16,20 @@
             <span class="detail-label">Received At</span>
             <strong>{{.Webhook.ReceivedAt}}</strong>
         </div>
+        <div class="detail-card">
+            <span class="detail-label">Failure Count</span>
+            <strong>{{.Webhook.FailureCount}}</strong>
+        </div>
+        <div class="detail-card">
+            <span class="detail-label">Dead-Lettered At</span>
+            <strong>{{if .Webhook.DeadLetteredAt}}{{.Webhook.DeadLetteredAt}}{{else}}-{{end}}</strong>
+        </div>
     </div>
+
+    {{if .Webhook.DeadLetterReason}}
+    <p><strong>Dead-Letter Reason</strong></p>
+    <pre class="code-block">{{.Webhook.DeadLetterReason}}</pre>
+    {{end}}
 
     <p><strong>Headers</strong></p>
     <pre class="code-block">{{.Webhook.Headers}}</pre>
