@@ -4,6 +4,8 @@
 
 Use it to debug, inspect, replay, and route incoming webhooks during development or in production. No third-party services, no cloud lock-in — just full control.
 
+![WebhookHub Dashboard](docs/screenshots/webhookhub-dashboard.png)
+
 ---
 
 ## 🚀 Why WebhookHub?

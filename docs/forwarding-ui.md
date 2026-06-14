@@ -1,15 +1,25 @@
-# 🔁 Configure Forwarding in Web UI (Planned)
+# 🔁 Configure Forwarding in Web UI
 
-🚧 In future versions, WebhookHub will support configuring forwarding rules via Web UI.
+WebhookHub already includes a Web UI for managing forwarding rules.
 
-Planned features:
-- Add/edit forwarding URLs per source
-- Enable/disable targets
-- Set delivery filters
-- View delivery attempts per target
+## What you can configure
 
-## For now
+- Add, edit, and delete one forwarding rule per source
+- Set the target URL for outgoing delivery
+- Verify incoming HMAC signatures
+- Sign outgoing deliveries
+- Configure retry policy per rule
+  - max attempts
+  - initial backoff in seconds
 
-Forwarding is configured statically in:
+## Current behavior
 
-UI config panel coming soon!
+- Each source currently maps to a single target URL
+- Delivery retries use exponential backoff and eventually move failed webhooks to the DLQ
+- You can inspect delivery attempts from the webhook detail page
+
+## Where to find it
+
+- Open `/forwarding` after logging in
+- Open `/dashboard` for metrics and recent activity
+- Open `/dlq` to manage dead-lettered webhooks
