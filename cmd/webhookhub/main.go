@@ -43,6 +43,7 @@ func main() {
 	mux.HandleFunc("/api/webhooks", protected(handler.ListWebhooks(db)))
 	mux.HandleFunc("/api/webhooks/replay", protected(handler.ReplayWebhook(db)))
 	mux.HandleFunc("/api/webhooks/delete", handler.RequireAuth(handler.DeleteWebhook(db)))
+	mux.HandleFunc("/partials/metrics", protected(handler.DeliveryMetricsPartial(db)))
 	mux.HandleFunc("/partials/webhooks", protected(handler.WebhookPartial(db)))
 	mux.HandleFunc("/partials/webhook/", protected(handler.InspectWebhook(db)))
 

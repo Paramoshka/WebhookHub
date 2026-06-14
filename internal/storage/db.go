@@ -29,7 +29,7 @@ func InitDB() *DB {
 	}
 
 	// Auto migrate
-	err = db.AutoMigrate(&model.Webhook{}, &model.ForwardingRule{}, &model.User{})
+	err = db.AutoMigrate(&model.Webhook{}, &model.DeliveryAttempt{}, &model.ForwardingRule{}, &model.User{})
 	if err != nil {
 		log.Fatalf("auto-migrate failed: %v", err)
 	}
@@ -98,6 +98,13 @@ func (d *DB) UpdateResponseFromForward(id int, resp []byte) {
 // Update webhook status
 func (d *DB) UpdateStatus(id int, status string) {
 	d.conn.Model(&model.Webhook{}).Where("id = ?", id).Update("status", status)
+}
+
+func (d *DB) ResetWebhookDeliveryState(id int) {
+	d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(map[string]any{
+		"status":   "pending",
+		"response": []byte(nil),
+	})
 }
 
 // Delete webhook

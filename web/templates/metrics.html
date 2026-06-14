@@ -1,0 +1,86 @@
+<section class="metrics-section">
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <div class="metric-label">Received Webhooks</div>
+      <div class="metric-value">{{.TotalWebhooks}}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Delivery Attempts</div>
+      <div class="metric-value">{{.TotalAttempts}}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Successful</div>
+      <div class="metric-value">{{.SuccessCount}}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Failed</div>
+      <div class="metric-value">{{.FailedCount}}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Success Rate</div>
+      <div class="metric-value">{{printf "%.1f%%" .SuccessRate}}</div>
+    </div>
+  </div>
+
+  <h3>Delivery Metrics by Source</h3>
+  {{if .SourceBreakdown}}
+  <table class="metrics-table">
+    <thead>
+      <tr>
+        <th>Source</th>
+        <th>Attempts</th>
+        <th>Success</th>
+        <th>Failed</th>
+        <th>Pending</th>
+        <th>Skipped</th>
+        <th>Success Rate</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .SourceBreakdown}}
+      <tr>
+        <td>{{.Source}}</td>
+        <td>{{.Attempts}}</td>
+        <td>{{.Success}}</td>
+        <td>{{.Failed}}</td>
+        <td>{{.Pending}}</td>
+        <td>{{.Skipped}}</td>
+        <td>{{printf "%.1f%%" .SuccessRate}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="metrics-empty">No delivery attempts yet.</p>
+  {{end}}
+
+  <h3>Recent Failed Deliveries</h3>
+  {{if .RecentFailures}}
+  <table class="metrics-table">
+    <thead>
+      <tr>
+        <th>Webhook</th>
+        <th>Source</th>
+        <th>Target</th>
+        <th>HTTP</th>
+        <th>Started</th>
+        <th>Error</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .RecentFailures}}
+      <tr>
+        <td>{{.WebhookID}}</td>
+        <td>{{.Source}}</td>
+        <td>{{if .Target}}{{.Target}}{{else}}-{{end}}</td>
+        <td>{{if .HTTPStatus}}{{.HTTPStatus}}{{else}}-{{end}}</td>
+        <td>{{.StartedAt}}</td>
+        <td>{{if .ErrorMessage}}{{.ErrorMessage}}{{else}}-{{end}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="metrics-empty">No failed deliveries.</p>
+  {{end}}
+</section>

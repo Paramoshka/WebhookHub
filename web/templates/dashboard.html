@@ -2,6 +2,10 @@
 
 {{define "content"}}
 <h2>Webhook Logs</h2>
+<div hx-get="/partials/metrics" hx-trigger="load, every 5s" hx-swap="innerHTML">
+  Loading delivery metrics...
+</div>
+<h3>Recent Webhooks</h3>
 <div hx-get="/partials/webhooks" hx-trigger="load, every 5s" hx-swap="innerHTML">
   Loading logs...
 </div>

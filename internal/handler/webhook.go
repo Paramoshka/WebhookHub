@@ -75,6 +75,10 @@ func ReplayWebhook(db *storage.DB) http.HandlerFunc {
 			return
 		}
 
+		db.ResetWebhookDeliveryState(int(hook.ID))
+		hook.Status = "pending"
+		hook.Response = nil
+
 		go forwarder.Forward(db, &hook)
 
 		// возвращаем тот же HTML, что и был

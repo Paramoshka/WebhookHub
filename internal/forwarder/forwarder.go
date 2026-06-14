@@ -3,6 +3,7 @@ package forwarder
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -17,10 +18,32 @@ var timeout = 5 * time.Second
 const maxBody = int64(1 << 20)
 
 func Forward(db *storage.DB, h *model.Webhook) {
+	startedAt := time.Now()
 	rule, found := db.GetForwardingRule(h.Source)
+
+	attemptID := db.CreateDeliveryAttempt(&model.DeliveryAttempt{
+		WebhookID: h.ID,
+		Source:    h.Source,
+		Target:    rule.Target,
+		Status:    "pending",
+		StartedAt: startedAt,
+	})
+
+	status := "failed"
+	httpStatus := 0
+	errorMessage := ""
+	responseBody := []byte(nil)
+
+	defer func() {
+		db.UpdateResponseFromForward(int(h.ID), responseBody)
+		db.UpdateStatus(int(h.ID), status)
+		db.FinishDeliveryAttempt(attemptID, status, httpStatus, errorMessage, time.Since(startedAt).Milliseconds())
+	}()
+
 	if !found || rule.Target == "" {
+		errorMessage = "no forwarding target configured"
+		status = "skipped"
 		log.Printf("⚠️ No forwarding target for source '%s'\n", h.Source)
-		db.UpdateStatus(int(h.ID), "skipped")
 		return
 	}
 
@@ -29,8 +52,8 @@ func Forward(db *storage.DB, h *model.Webhook) {
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, rule.Target, bytes.NewBuffer(h.Payload))
 	if err != nil {
+		errorMessage = fmt.Sprintf("failed to create forwarding request: %v", err)
 		log.Printf("❌ Failed to create forwarding request for %s: %v\n", rule.Target, err)
-		db.UpdateStatus(int(h.ID), "failed")
 		return
 	}
 
@@ -44,29 +67,31 @@ func Forward(db *storage.DB, h *model.Webhook) {
 	}
 	resp, err := client.Do(req)
 	if err != nil {
+		errorMessage = err.Error()
 		log.Printf("❌ Forwarding to %s failed: %v\n", rule.Target, err)
-		db.UpdateStatus(int(h.ID), "failed")
 		return
 	}
 	defer resp.Body.Close()
 
+	httpStatus = resp.StatusCode
+
 	limited := io.LimitReader(resp.Body, maxBody)
 	body, err := io.ReadAll(limited)
 	if err != nil {
-		db.UpdateResponseFromForward(int(h.ID), body)
+		responseBody = body
+		errorMessage = fmt.Sprintf("failed to read response body: %v", err)
 		log.Printf("❌ Forwarding error reading body: %v\n", err)
-		db.UpdateStatus(int(h.ID), "failed")
 		return
 	}
 
-	db.UpdateResponseFromForward(int(h.ID), body)
+	responseBody = body
 
 	if resp.StatusCode >= 400 {
+		errorMessage = fmt.Sprintf("target responded with status %d", resp.StatusCode)
 		log.Printf("❌ Forwarding failed with status %d: %s\n", resp.StatusCode, rule.Target)
-		db.UpdateStatus(int(h.ID), "failed")
 		return
 	}
 
+	status = "success"
 	log.Printf("✅ Forwarded webhook ID %d to %s\n", h.ID, rule.Target)
-	db.UpdateStatus(int(h.ID), "success")
 }

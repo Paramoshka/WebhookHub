@@ -18,6 +18,11 @@ type WebhookPageData struct {
 	DisableNext bool
 }
 
+type InspectWebhookData struct {
+	Webhook  model.Webhook
+	Attempts []model.DeliveryAttempt
+}
+
 func WebhookPartial(db *storage.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		source := strings.TrimSpace(r.URL.Query().Get("source"))
@@ -61,6 +66,9 @@ func InspectWebhook(db *storage.DB) http.HandlerFunc {
 		}
 
 		tmpl := template.Must(template.ParseFiles("web/templates/inspect.html"))
-		tmpl.Execute(w, webhook)
+		tmpl.Execute(w, InspectWebhookData{
+			Webhook:  webhook,
+			Attempts: db.DeliveryAttemptsByWebhook(webhook.ID),
+		})
 	}
 }

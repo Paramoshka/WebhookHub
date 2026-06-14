@@ -8,11 +8,17 @@ import (
 
 func DashboardUI(db *storage.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		rules := db.GetForwardingRules()
 		tmpl := template.Must(template.ParseFiles(
 			"web/templates/base.html",
 			"web/templates/dashboard.html",
 		))
-		tmpl.ExecuteTemplate(w, "base", rules)
+		tmpl.ExecuteTemplate(w, "base", nil)
+	}
+}
+
+func DeliveryMetricsPartial(db *storage.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tmpl := template.Must(template.ParseFiles("web/templates/metrics.html"))
+		tmpl.Execute(w, db.DeliveryMetrics())
 	}
 }

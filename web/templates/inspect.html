@@ -1,14 +1,46 @@
 <div style="padding: 1rem;">
-    <h2>Webhook #{{.ID}}</h2>
-    <p><strong>Source:</strong> {{.Source}}</p>
-    <p><strong>Status:</strong> <span class="status-{{.Status}}">{{.Status}}</span></p>
-    <p><strong>Received At:</strong> {{.ReceivedAt}}</p>
+    <h2>Webhook #{{.Webhook.ID}}</h2>
+    <p><strong>Source:</strong> {{.Webhook.Source}}</p>
+    <p><strong>Status:</strong> <span class="status-{{.Webhook.Status}}">{{.Webhook.Status}}</span></p>
+    <p><strong>Received At:</strong> {{.Webhook.ReceivedAt}}</p>
     <p><strong>Headers:</strong></p>
-    <pre style="background:#f4f4f4; color:#333; padding: 1rem; border-radius: 8px;">{{.Headers}}</pre>
+    <pre style="background:#f4f4f4; color:#333; padding: 1rem; border-radius: 8px;">{{.Webhook.Headers}}</pre>
 
     <p><strong>Payload:</strong></p>
-    <pre style="background:#f4f4f4; color:#333; padding: 1rem; border-radius: 8px;">{{printf "%s" .Payload}}</pre>
+    <pre style="background:#f4f4f4; color:#333; padding: 1rem; border-radius: 8px;">{{printf "%s" .Webhook.Payload}}</pre>
 
     <p><strong>Response from forward:</strong></p>
-    <pre style="background:#f4f4f4; color:#333; padding: 1rem; border-radius: 8px;">{{printf "%s" .Response}}</pre>
+    <pre style="background:#f4f4f4; color:#333; padding: 1rem; border-radius: 8px;">{{printf "%s" .Webhook.Response}}</pre>
+
+    <h3>Delivery Attempts</h3>
+    {{if .Attempts}}
+    <table class="metrics-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Target</th>
+                <th>Status</th>
+                <th>HTTP</th>
+                <th>Duration</th>
+                <th>Started</th>
+                <th>Error</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Attempts}}
+            <tr>
+                <td>{{.ID}}</td>
+                <td>{{if .Target}}{{.Target}}{{else}}-{{end}}</td>
+                <td class="status-{{.Status}}">{{.Status}}</td>
+                <td>{{if .HTTPStatus}}{{.HTTPStatus}}{{else}}-{{end}}</td>
+                <td>{{.DurationMS}} ms</td>
+                <td>{{.StartedAt}}</td>
+                <td>{{if .ErrorMessage}}{{.ErrorMessage}}{{else}}-{{end}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    {{else}}
+    <p>No delivery attempts yet.</p>
+    {{end}}
 </div>
