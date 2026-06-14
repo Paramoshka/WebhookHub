@@ -183,6 +183,11 @@ p {
     transform: translateY(-1px);
 }
 
+.nav-link.is-disabled {
+    pointer-events: none;
+    opacity: 0.45;
+}
+
 .container {
     max-width: 1200px;
     margin: 0 auto;
@@ -522,6 +527,11 @@ button:focus-visible {
 .status-pending {
     color: var(--warning);
     background: rgba(255, 209, 102, 0.14);
+}
+
+.status-retrying {
+    color: #8cd8ff;
+    background: rgba(92, 200, 255, 0.16);
 }
 
 .status-skipped {

@@ -101,6 +101,8 @@ func (d *DB) ResetWebhookDeliveryState(id int) {
 		"status":             "pending",
 		"response":           []byte(nil),
 		"failure_count":      0,
+		"last_error":         "",
+		"next_retry_at":      nil,
 		"dead_lettered_at":   nil,
 		"dead_letter_reason": "",
 	}).Error; err != nil {
@@ -112,6 +114,8 @@ func (d *DB) MarkWebhookDeliverySuccess(id int) {
 	if err := d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(map[string]any{
 		"status":             "success",
 		"failure_count":      0,
+		"last_error":         "",
+		"next_retry_at":      nil,
 		"dead_lettered_at":   nil,
 		"dead_letter_reason": "",
 	}).Error; err != nil {
@@ -123,6 +127,8 @@ func (d *DB) MarkWebhookDeliverySkipped(id int) {
 	if err := d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(map[string]any{
 		"status":             "skipped",
 		"failure_count":      0,
+		"last_error":         "",
+		"next_retry_at":      nil,
 		"dead_lettered_at":   nil,
 		"dead_letter_reason": "",
 	}).Error; err != nil {
@@ -147,10 +153,14 @@ func (d *DB) MarkWebhookDeliveryFailed(id int, reason string, maxFailures int) s
 		now := time.Now()
 		status = "dead_lettered"
 		updates["status"] = status
+		updates["last_error"] = reason
+		updates["next_retry_at"] = nil
 		updates["dead_lettered_at"] = &now
 		updates["dead_letter_reason"] = reason
 	} else {
 		updates["status"] = status
+		updates["last_error"] = reason
+		updates["next_retry_at"] = nil
 		updates["dead_lettered_at"] = nil
 		updates["dead_letter_reason"] = ""
 	}
@@ -161,6 +171,19 @@ func (d *DB) MarkWebhookDeliveryFailed(id int, reason string, maxFailures int) s
 	}
 
 	return status
+}
+
+func (d *DB) MarkWebhookRetryScheduled(id int, failureCount int, reason string, nextRetryAt time.Time) {
+	if err := d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(map[string]any{
+		"status":             "retrying",
+		"failure_count":      failureCount,
+		"last_error":         reason,
+		"next_retry_at":      &nextRetryAt,
+		"dead_lettered_at":   nil,
+		"dead_letter_reason": "",
+	}).Error; err != nil {
+		log.Println("DB MarkWebhookRetryScheduled Error:", err)
+	}
 }
 
 // Delete webhook

@@ -4,7 +4,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
+	"webhookhub/internal/forwarder"
 	"webhookhub/internal/handler"
 	"webhookhub/internal/storage"
 
@@ -19,6 +21,7 @@ func main() {
 
 	// Init DB (PostgreSQL via GORM)
 	db := storage.InitDB()
+	forwarder.StartRetryWorker(db, 5*time.Second, 20)
 
 	// Set up HTTP mux
 	mux := http.NewServeMux()
@@ -40,6 +43,7 @@ func main() {
 
 	mux.HandleFunc("/", protected(handler.ServeIndex(db)))
 	mux.HandleFunc("/dashboard", protected(handler.DashboardUI(db)))
+	mux.HandleFunc("/dlq", protected(handler.DLQUI(db)))
 	mux.HandleFunc("/api/webhooks", protected(handler.ListWebhooks(db)))
 	mux.HandleFunc("/api/webhooks/replay", protected(handler.ReplayWebhook(db)))
 	mux.HandleFunc("/api/webhooks/delete", handler.RequireAuth(handler.DeleteWebhook(db)))

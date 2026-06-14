@@ -49,6 +49,20 @@
     </div>
   </div>
 
+  <div class="section">
+    <div class="section-title">Delivery retry policy</div>
+    <div class="fields grid-2">
+      <input type="number"
+             name="retry_max_attempts"
+             placeholder="Max attempts (default: 3)"
+             min="1" step="1">
+      <input type="number"
+             name="retry_backoff_seconds"
+             placeholder="Initial backoff in seconds (default: 2)"
+             min="1" step="1">
+    </div>
+  </div>
+
   <div class="actions">
     <button class="btn-primary" type="submit">Add Rule</button>
   </div>
@@ -68,6 +82,7 @@
   <tr>
     <th>Source</th>
     <th>Target URL</th>
+    <th>Retry Policy</th>
     <th>Incoming HMAC</th>
     <th>Outgoing HMAC</th>
     <th>Action</th>
@@ -78,6 +93,7 @@
   <tr>
     <td><span class="source-badge">{{.Source}}</span></td>
     <td class="wrap-text">{{.Target}}</td>
+    <td>{{if gt .RetryMaxAttempts 0}}{{.RetryMaxAttempts}}{{else}}3{{end}} attempts / {{if gt .RetryBackoffSeconds 0}}{{.RetryBackoffSeconds}}{{else}}2{{end}}s backoff</td>
     <td>{{if .VerifySecret}}✓ ({{if .VerifyHeader}}{{.VerifyHeader}}{{else}}Stripe-Signature{{end}}, {{if gt .ToleranceSeconds 0}}{{.ToleranceSeconds}}s{{else}}no time check{{end}}){{else}}—{{end}}</td>
     <td>{{if .OutgoingSecret}}✓{{else}}—{{end}}</td>
     <td>

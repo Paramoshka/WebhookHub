@@ -49,8 +49,17 @@ WebhookHub provides a simple, developer-friendly solution to these problems.
 - [x] HMAC signature verification (e.g., Stripe-style)
 - [x] Delivery status tracking + metrics
 - [x] Dead-letter queue
-- [ ] Ngrok/localtunnel integration (for local dev)
+- [x] Configurable retry/backoff policy
+- [x] Dead-letter queue management UI
+
+### v0.3+
+- [ ] Advanced search and filters
+- [ ] Retention / cleanup policies
+- [ ] Export and bulk redelivery tools
+- [ ] Telegram integration
 - [ ] OpenAPI schema
+
+### v0.4+
 - [ ] Plugin system for custom processors
 
 ---

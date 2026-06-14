@@ -81,9 +81,13 @@ func ReplayWebhook(db *storage.DB) http.HandlerFunc {
 
 		go forwarder.Forward(db, &hook)
 
-		// Return the same HTML snippet as before.
-		w.Header().Set("Content-Type", "text/html")
-		fmt.Fprintf(w, `<span style="color:green;">✅ Replayed</span>`)
+		if r.Header.Get("HX-Request") == "true" {
+			w.Header().Set("Content-Type", "text/html")
+			fmt.Fprintf(w, `<span style="color:green;">✅ Replayed</span>`)
+			return
+		}
+
+		http.Redirect(w, r, redirectTarget(r, "/dashboard"), http.StatusSeeOther)
 	}
 }
 
@@ -97,6 +101,25 @@ func DeleteWebhook(db *storage.DB) http.HandlerFunc {
 		}
 
 		db.DeleteWebhook(id)
-		w.WriteHeader(http.StatusOK)
+		if r.Header.Get("HX-Request") == "true" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		http.Redirect(w, r, redirectTarget(r, "/dashboard"), http.StatusSeeOther)
 	}
+}
+
+func redirectTarget(r *http.Request, fallback string) string {
+	target := strings.TrimSpace(r.URL.Query().Get("redirect_to"))
+	if target != "" {
+		return target
+	}
+
+	referer := strings.TrimSpace(r.Referer())
+	if referer != "" {
+		return referer
+	}
+
+	return fallback
 }

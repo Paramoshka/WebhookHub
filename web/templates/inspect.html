@@ -21,10 +21,19 @@
             <strong>{{.Webhook.FailureCount}}</strong>
         </div>
         <div class="detail-card">
+            <span class="detail-label">Next Retry At</span>
+            <strong>{{if .Webhook.NextRetryAt}}{{.Webhook.NextRetryAt}}{{else}}-{{end}}</strong>
+        </div>
+        <div class="detail-card">
             <span class="detail-label">Dead-Lettered At</span>
             <strong>{{if .Webhook.DeadLetteredAt}}{{.Webhook.DeadLetteredAt}}{{else}}-{{end}}</strong>
         </div>
     </div>
+
+    {{if .Webhook.LastError}}
+    <p><strong>Last Error</strong></p>
+    <pre class="code-block">{{.Webhook.LastError}}</pre>
+    {{end}}
 
     {{if .Webhook.DeadLetterReason}}
     <p><strong>Dead-Letter Reason</strong></p>

@@ -59,6 +59,19 @@
       <div class="helper-text">Header: X-WebhookHub-Signature (t=..., v1=...)</div>
     </div>
 
+    <div class="section">
+      <div class="section-title">Delivery retry policy</div>
+      <label>
+        <div class="field-label">Max attempts</div>
+        <input type="number" name="retry_max_attempts" value="{{if gt .RetryMaxAttempts 0}}{{.RetryMaxAttempts}}{{else}}3{{end}}" min="1" step="1">
+      </label>
+      <label>
+        <div class="field-label">Initial backoff, seconds</div>
+        <input type="number" name="retry_backoff_seconds" value="{{if gt .RetryBackoffSeconds 0}}{{.RetryBackoffSeconds}}{{else}}2{{end}}" min="1" step="1">
+      </label>
+      <div class="helper-text">Backoff grows exponentially between attempts and is capped to keep delivery responsive.</div>
+    </div>
+
     <button type="submit" class="btn-primary">Save Changes</button>
   </form>
 </div>

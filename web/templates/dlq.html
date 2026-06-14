@@ -1,0 +1,69 @@
+{{define "title"}}Dead-Letter Queue – WebhookHub{{end}}
+
+{{define "content"}}
+<section class="page-header">
+  <span class="eyebrow">Recovery</span>
+  <h1>Dead-Letter Queue</h1>
+  <p class="lead">Review webhook deliveries that exhausted their retry policy, inspect the last error, and requeue or delete them intentionally.</p>
+</section>
+
+<section class="panel">
+  <form method="GET" action="/dlq" class="rule-form">
+    <div class="section">
+      <div class="section-title">Filter</div>
+      <div class="fields grid-2">
+        <input type="text" name="source" value="{{.Source}}" placeholder="Webhook source (e.g., stripe)">
+        <button type="submit" class="btn-primary">Apply Filter</button>
+      </div>
+    </div>
+  </form>
+
+  {{if .Webhooks}}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Webhook</th>
+        <th>Source</th>
+        <th>Failures</th>
+        <th>Dead-Lettered At</th>
+        <th>Reason</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Webhooks}}
+      <tr>
+        <td class="table-id">#{{.ID}}</td>
+        <td><span class="source-badge">{{.Source}}</span></td>
+        <td>{{.FailureCount}}</td>
+        <td>{{if .DeadLetteredAt}}{{.DeadLetteredAt}}{{else}}-{{end}}</td>
+        <td class="wrap-text">{{if .DeadLetterReason}}{{.DeadLetterReason}}{{else}}-{{end}}</td>
+        <td>
+          <div class="action-buttons">
+            <form method="POST" action="/api/webhooks/replay?id={{.ID}}&redirect_to={{urlquery $.CurrentURL}}">
+              <button class="btn-edit" type="submit">Requeue</button>
+            </form>
+            <a href="/partials/webhook/{{.ID}}" target="_blank" class="action-link">Inspect</a>
+            <form method="POST" action="/api/webhooks/delete?id={{.ID}}&redirect_to={{urlquery $.CurrentURL}}" onsubmit="return confirm('Delete this DLQ item?')">
+              <button class="btn-delete" type="submit">Delete</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="empty-state">
+    <h3>Dead-letter queue is empty</h3>
+    <p>Webhook deliveries that exhaust their retry policy will appear here for manual recovery.</p>
+  </div>
+  {{end}}
+
+  <div class="pagination">
+    <a href="{{.PrevURL}}" class="nav-link {{if .DisablePrev}}is-disabled{{end}}">Prev</a>
+    <span>Page {{.CurrentPage}}</span>
+    <a href="{{.NextURL}}" class="nav-link {{if .DisableNext}}is-disabled{{end}}">Next</a>
+  </div>
+</section>
+{{end}}

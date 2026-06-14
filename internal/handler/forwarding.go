@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"webhookhub/internal/forwarder"
 	"webhookhub/internal/hmacsig"
 	"webhookhub/internal/model"
 	"webhookhub/internal/storage"
@@ -156,6 +157,14 @@ func parseForwardingRuleForm(r *http.Request, existing *model.ForwardingRule) (m
 
 	outgoingSecret := strings.TrimSpace(r.FormValue("outgoing_secret"))
 	clearOutgoing := r.FormValue("clear_outgoing_secret") != ""
+	retryMaxAttempts, err := parsePositiveIntWithDefault(strings.TrimSpace(r.FormValue("retry_max_attempts")), forwarder.DefaultMaxAttempts, "retry max attempts must be a positive integer")
+	if err != nil {
+		return model.ForwardingRule{}, err
+	}
+	retryBackoffSeconds, err := parsePositiveIntWithDefault(strings.TrimSpace(r.FormValue("retry_backoff_seconds")), forwarder.DefaultBackoffSeconds, "retry backoff seconds must be a positive integer")
+	if err != nil {
+		return model.ForwardingRule{}, err
+	}
 
 	switch {
 	case clearOutgoing:
@@ -165,6 +174,9 @@ func parseForwardingRuleForm(r *http.Request, existing *model.ForwardingRule) (m
 	case existing == nil:
 		rule.OutgoingSecret = ""
 	}
+
+	rule.RetryMaxAttempts = retryMaxAttempts
+	rule.RetryBackoffSeconds = retryBackoffSeconds
 
 	return rule, nil
 }
@@ -187,4 +199,16 @@ func normalizeVerifyHeader(value, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func parsePositiveIntWithDefault(raw string, fallback int, message string) (int, error) {
+	if raw == "" {
+		return fallback, nil
+	}
+
+	value, err := strconv.Atoi(raw)
+	if err != nil || value <= 0 {
+		return 0, errors.New(message)
+	}
+	return value, nil
 }
