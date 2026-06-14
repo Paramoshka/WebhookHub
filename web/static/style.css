@@ -72,23 +72,23 @@ h1,
 h2,
 h3 {
     color: var(--heading);
-    line-height: 1.1;
+    line-height: 1.14;
     margin: 0;
 }
 
 h1 {
     font-size: clamp(2.1rem, 4vw, 3.6rem);
-    letter-spacing: -0.04em;
+    letter-spacing: -0.025em;
 }
 
 h2 {
     font-size: clamp(1.5rem, 2.4vw, 2.2rem);
-    letter-spacing: -0.03em;
+    letter-spacing: -0.015em;
 }
 
 h3 {
     font-size: 1.05rem;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
 }
 
 p {
