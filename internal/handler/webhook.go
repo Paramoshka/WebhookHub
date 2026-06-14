@@ -81,7 +81,7 @@ func ReplayWebhook(db *storage.DB) http.HandlerFunc {
 
 		go forwarder.Forward(db, &hook)
 
-		// возвращаем тот же HTML, что и был
+		// Return the same HTML snippet as before.
 		w.Header().Set("Content-Type", "text/html")
 		fmt.Fprintf(w, `<span style="color:green;">✅ Replayed</span>`)
 	}

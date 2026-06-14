@@ -3,25 +3,35 @@
 <html>
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{block "title" .}}WebhookHub{{end}}</title>
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.2"></script>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<div class="navbar">
-  <div>
-    <a href="/" hx-boost="true">Home</a>
-    <a href="/dashboard" hx-boost="true">Webhook Logs</a>
-    <a href="/forwarding" hx-boost="true">Forwarding Rules</a>
+<header class="navbar">
+  <div class="brand-group">
+    <a href="/" hx-boost="true" class="brand-mark">WH</a>
+    <div>
+      <a href="/" hx-boost="true" class="brand-name">WebhookHub</a>
+      <div class="brand-subtitle">Receive, inspect and deliver webhooks with full traceability.</div>
+    </div>
   </div>
-  <form action="/logout" method="POST">
-    <button class="btn-primary" type="submit">Logout</button>
-  </form>
-</div>
 
-<div class="container">
+  <nav class="nav-links" aria-label="Primary">
+    <a href="/" hx-boost="true" class="nav-link">Home</a>
+    <a href="/dashboard" hx-boost="true" class="nav-link">Webhook Logs</a>
+    <a href="/forwarding" hx-boost="true" class="nav-link">Forwarding Rules</a>
+  </nav>
+
+  <form action="/logout" method="POST">
+    <button class="btn-secondary" type="submit">Logout</button>
+  </form>
+</header>
+
+<main class="container">
   {{block "content" .}}{{end}}
-</div>
+</main>
 </body>
 </html>
 {{end}}

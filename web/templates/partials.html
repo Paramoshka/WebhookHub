@@ -1,4 +1,5 @@
-<table>
+{{if .Webhooks}}
+<table class="data-table">
   <thead>
     <tr>
       <th>ID</th>
@@ -11,33 +12,39 @@
   <tbody>
     {{range .Webhooks}}
     <tr id="webhook-{{.ID}}">
-      <td>{{.ID}}</td>
-      <td>{{.Source}}</td>
+      <td class="table-id">#{{.ID}}</td>
+      <td><span class="source-badge">{{.Source}}</span></td>
       <td>{{.ReceivedAt}}</td>
-      <td class="status-{{.Status}}">{{.Status}}</td>
+      <td><span class="status-chip status-{{.Status}}">{{.Status}}</span></td>
       <td>
-        <a
-          hx-post="/api/webhooks/replay?id={{.ID}}"
-          hx-swap="outerHTML"
-          hx-target="this"
-          hx-trigger="click"
-          class="replay-link"
-        >🔁 Retry</a>
+        <div class="table-actions">
+          <a
+            hx-post="/api/webhooks/replay?id={{.ID}}"
+            hx-swap="outerHTML"
+            hx-target="this"
+            hx-trigger="click"
+            class="action-link"
+          >Retry</a>
 
-        |
-        <a href="/partials/webhook/{{.ID}}" target="_blank">🔍 Inspect</a>
+          <a href="/partials/webhook/{{.ID}}" target="_blank" class="action-link">Inspect</a>
 
-        |
-        <a
-          href="#"
-          onclick="if(confirm('Delete this webhook?')) { this.setAttribute('hx-post', '/api/webhooks/delete?id={{.ID}}'); }"
-          hx-post="/api/webhooks/delete?id={{.ID}}"
-          hx-target="#webhook-{{.ID}}"
-          hx-swap="outerHTML"
-          class="replay-link"
-        >🗑 Delete</a>
-      </td>    
+          <a
+            href="#"
+            onclick="if(confirm('Delete this webhook?')) { this.setAttribute('hx-post', '/api/webhooks/delete?id={{.ID}}'); }"
+            hx-post="/api/webhooks/delete?id={{.ID}}"
+            hx-target="#webhook-{{.ID}}"
+            hx-swap="outerHTML"
+            class="action-link action-link-danger"
+          >Delete</a>
+        </div>
+      </td>
     </tr>
-    {{end}}  
+    {{end}}
   </tbody>
 </table>
+{{else}}
+<div class="empty-state">
+  <h3>No webhooks yet</h3>
+  <p>Send a request to `/hook/:source` and it will appear here with delivery details.</p>
+</div>
+{{end}}

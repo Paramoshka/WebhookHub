@@ -1,63 +1,64 @@
-<div style="margin-top: 2rem; border: 1px solid #e5e7eb; border-radius: 12px; padding: 1.5rem; background: #fff;">
-  <h3 style="margin-top: 0;">Edit Forwarding Rule</h3>
-  <form method="POST" action="/forwarding/update" style="display: flex; flex-direction: column; gap: 1rem;">
+<div>
+  <div class="section-header">
+    <div>
+      <span class="eyebrow">Update rule</span>
+      <h2>Edit Forwarding Rule</h2>
+    </div>
+  </div>
+
+  <form method="POST" action="/forwarding/update" class="edit-rule-form">
     <input type="hidden" name="source" value="{{.Source}}">
-    <label>
-      Source: <strong>{{.Source}}</strong>
-    </label>
-    <label>
-      <div style="margin-bottom: 0.4rem;">Target URL</div>
-      <input type="url" name="target" value="{{.Target}}" required
-             style="padding: 0.6rem; border-radius: 8px; border: 1px solid #d1d5db; width: 100%; font-size: 1rem;">
+    <label class="static-field">
+      Source
+      <strong>{{.Source}}</strong>
     </label>
 
-    <div style="display: flex; flex-direction: column; gap: 0.75rem; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1rem;">
-      <div style="font-weight: 600;">Incoming HMAC</div>
+    <label>
+      <div class="field-label">Target URL</div>
+      <input type="url" name="target" value="{{.Target}}" required>
+    </label>
+
+    <div class="section">
+      <div class="section-title">Incoming HMAC</div>
       <label>
-        <div style="margin-bottom: 0.4rem;">New signing secret</div>
+        <div class="field-label">New signing secret</div>
         <input type="password" name="verify_secret" placeholder="{{if .VerifySecret}}Leave blank to keep current secret{{else}}Stripe signing secret (whsec_...){{end}}"
-               autocomplete="off" data-lpignore="true"
-               style="padding: 0.6rem; border-radius: 8px; border: 1px solid #d1d5db; width: 100%; font-size: 1rem;">
+               autocomplete="off" data-lpignore="true">
       </label>
       <label>
-        <div style="margin-bottom: 0.4rem;">Signature header</div>
+        <div class="field-label">Signature header</div>
         <input type="text" name="verify_header" value="{{.VerifyHeader}}"
-               placeholder="Stripe-Signature"
-               style="padding: 0.6rem; border-radius: 8px; border: 1px solid #d1d5db; width: 100%; font-size: 1rem;">
+               placeholder="Stripe-Signature">
       </label>
       <label>
-        <div style="margin-bottom: 0.4rem;">Tolerance, seconds</div>
+        <div class="field-label">Tolerance, seconds</div>
         <input type="number" name="tolerance" value="{{if gt .ToleranceSeconds 0}}{{.ToleranceSeconds}}{{end}}" min="0" step="1"
-               placeholder="{{if .VerifySecret}}Leave blank to keep current{{else}}300{{end}}"
-               style="padding: 0.6rem; border-radius: 8px; border: 1px solid #d1d5db; width: 100%; font-size: 1rem;">
+               placeholder="{{if .VerifySecret}}Leave blank to keep current{{else}}300{{end}}">
       </label>
       {{if .VerifySecret}}
-      <label style="display: flex; gap: 0.5rem; align-items: center;">
+      <label class="checkbox-row">
         <input type="checkbox" name="clear_verify_secret" value="1">
         Clear incoming HMAC secret
       </label>
       {{end}}
     </div>
 
-    <div style="display: flex; flex-direction: column; gap: 0.75rem; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1rem;">
-      <div style="font-weight: 600;">Sign outgoing delivery</div>
+    <div class="section">
+      <div class="section-title">Sign outgoing delivery</div>
       <label>
-        <div style="margin-bottom: 0.4rem;">New outgoing secret</div>
+        <div class="field-label">New outgoing secret</div>
         <input type="password" name="outgoing_secret" placeholder="{{if .OutgoingSecret}}Leave blank to keep current secret{{else}}Secret to sign outgoing deliveries{{end}}"
-               autocomplete="off" data-lpignore="true"
-               style="padding: 0.6rem; border-radius: 8px; border: 1px solid #d1d5db; width: 100%; font-size: 1rem;">
+               autocomplete="off" data-lpignore="true">
       </label>
       {{if .OutgoingSecret}}
-      <label style="display: flex; gap: 0.5rem; align-items: center;">
+      <label class="checkbox-row">
         <input type="checkbox" name="clear_outgoing_secret" value="1">
         Clear outgoing HMAC secret
       </label>
       {{end}}
-      <div style="color: #6b7280; font-size: 0.9rem;">Header: X-WebhookHub-Signature (t=..., v1=...)</div>
+      <div class="helper-text">Header: X-WebhookHub-Signature (t=..., v1=...)</div>
     </div>
-    <button type="submit"
-            style="padding: 0.7rem; background: #111827; border: none; border-radius: 8px; color: white; font-size: 1rem;">
-      Save Changes
-    </button>
+
+    <button type="submit" class="btn-primary">Save Changes</button>
   </form>
 </div>

@@ -1,12 +1,26 @@
 {{define "title"}}Webhook Logs – WebhookHub{{end}}
 
 {{define "content"}}
-<h2>Webhook Logs</h2>
+<section class="page-header">
+  <span class="eyebrow">Observability</span>
+  <h1>Webhook Logs</h1>
+  <p class="lead">Live delivery metrics and the latest webhook traffic update automatically every few seconds.</p>
+</section>
+
 <div hx-get="/partials/metrics" hx-trigger="load, every 5s" hx-swap="innerHTML">
   Loading delivery metrics...
 </div>
-<h3>Recent Webhooks</h3>
-<div hx-get="/partials/webhooks" hx-trigger="load, every 5s" hx-swap="innerHTML">
-  Loading logs...
-</div>
+
+<section class="panel">
+  <div class="section-header">
+    <div>
+      <span class="eyebrow">Recent traffic</span>
+      <h2>Incoming webhooks</h2>
+    </div>
+  </div>
+
+  <div hx-get="/partials/webhooks" hx-trigger="load, every 5s" hx-swap="innerHTML">
+    Loading logs...
+  </div>
+</section>
 {{end}}

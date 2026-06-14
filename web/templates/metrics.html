@@ -22,9 +22,14 @@
     </div>
   </div>
 
-  <h3>Delivery Metrics by Source</h3>
+  <div class="section-header">
+    <div>
+      <span class="eyebrow">Breakdown</span>
+      <h2>Delivery Metrics by Source</h2>
+    </div>
+  </div>
   {{if .SourceBreakdown}}
-  <table class="metrics-table">
+  <table class="data-table">
     <thead>
       <tr>
         <th>Source</th>
@@ -54,9 +59,14 @@
   <p class="metrics-empty">No delivery attempts yet.</p>
   {{end}}
 
-  <h3>Recent Failed Deliveries</h3>
+  <div class="section-header">
+    <div>
+      <span class="eyebrow">Attention</span>
+      <h2>Recent Failed Deliveries</h2>
+    </div>
+  </div>
   {{if .RecentFailures}}
-  <table class="metrics-table">
+  <table class="data-table">
     <thead>
       <tr>
         <th>Webhook</th>

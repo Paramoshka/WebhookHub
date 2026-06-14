@@ -1,9 +1,47 @@
 {{define "title"}}Welcome – WebhookHub{{end}}
 {{define "content"}}
-  <h2>Welcome to WebhookHub</h2>
-  <p>This is your dashboard to view, replay, and manage incoming webhooks.</p>
-  <ul>
-    <li><a href="/dashboard">View Webhook Logs</a></li>
-    <li><a href="/forwarding">Manage Forwarding Rules</a></li>
-  </ul>
+  <section class="hero">
+    <div class="hero-copy">
+      <span class="eyebrow">Self-hosted webhook control plane</span>
+      <h1>Observe every delivery, replay failures, and route traffic without external tooling.</h1>
+      <p class="lead">WebhookHub keeps incoming payloads, forwarding rules, delivery history and metrics in one place, so you can debug integrations without guessing.</p>
+    </div>
+
+    <div class="hero-grid">
+      <a href="/dashboard" class="hero-card">
+        <span class="hero-card-label">Monitor</span>
+        <strong>View recent webhook activity and delivery metrics</strong>
+        <p>Track statuses, inspect payloads and review failed attempts.</p>
+      </a>
+      <a href="/forwarding" class="hero-card">
+        <span class="hero-card-label">Route</span>
+        <strong>Manage forwarding rules per source</strong>
+        <p>Define targets, verify incoming signatures and sign outbound deliveries.</p>
+      </a>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="section-header">
+      <div>
+        <span class="eyebrow">What you can do here</span>
+        <h2>Focused tools for webhook operations</h2>
+      </div>
+    </div>
+
+    <div class="feature-grid">
+      <article class="feature-card">
+        <h3>Trace delivery outcomes</h3>
+        <p>See whether forwarding succeeded, failed, was skipped, or is still pending.</p>
+      </article>
+      <article class="feature-card">
+        <h3>Inspect actual payloads</h3>
+        <p>Review headers, raw body and target response per webhook without leaving the UI.</p>
+      </article>
+      <article class="feature-card">
+        <h3>Replay intentionally</h3>
+        <p>Retry deliveries on demand and keep a clean history of each attempt.</p>
+      </article>
+    </div>
+  </section>
 {{end}}

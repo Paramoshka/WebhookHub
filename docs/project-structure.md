@@ -17,7 +17,7 @@ This document describes the folder structure of the WebhookHub project.
     │
     ├── migrations/             # SQL database schema (Postgres/SQLite)
     │
-    ├── web/                    # статика, шаблоны, frontend (если встроенный UI)
+    ├── web/                    # static assets, templates, frontend (if using built-in UI)
     │   ├── assets/
     │   └── templates/
     │
