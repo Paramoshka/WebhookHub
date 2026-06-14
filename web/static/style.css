@@ -196,8 +196,7 @@ p {
 
 .page-header,
 .hero,
-.panel,
-.metrics-section {
+.panel {
     animation: rise-in 0.45s ease-out both;
 }
 
