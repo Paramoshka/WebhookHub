@@ -3,6 +3,7 @@ package handler
 import (
 	"html/template"
 	"net/http"
+	"strings"
 	"webhookhub/internal/storage"
 )
 
@@ -12,7 +13,16 @@ func DashboardUI(db *storage.DB) http.HandlerFunc {
 			"web/templates/base.html",
 			"web/templates/dashboard.html",
 		))
-		tmpl.ExecuteTemplate(w, "base", nil)
+
+		data := WebhookPageData{
+			Source: strings.TrimSpace(r.URL.Query().Get("source")),
+			Status: strings.TrimSpace(r.URL.Query().Get("status")),
+			Query:  strings.TrimSpace(r.URL.Query().Get("q")),
+			Sort:   strings.TrimSpace(r.URL.Query().Get("sort")),
+			From:   strings.TrimSpace(r.URL.Query().Get("from")),
+			To:     strings.TrimSpace(r.URL.Query().Get("to")),
+		}
+		tmpl.ExecuteTemplate(w, "base", data)
 	}
 }
 

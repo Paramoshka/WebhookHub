@@ -4,6 +4,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"webhookhub/internal/forwarder"
@@ -22,6 +24,15 @@ func main() {
 	// Init DB (PostgreSQL via GORM)
 	db := storage.InitDB()
 	forwarder.StartRetryWorker(db, 5*time.Second, 20)
+
+	retentionEnabled := getEnvBool("RETENTION_ENABLED")
+	retentionDays := getEnvInt("RETENTION_DAYS", 30)
+	retentionInterval := getEnvDuration("RETENTION_INTERVAL", 24*time.Hour)
+	retentionBatchSize := getEnvInt("RETENTION_BATCH_SIZE", 300)
+	if retentionEnabled {
+		storage.StartRetentionWorker(db, retentionDays, retentionInterval, retentionBatchSize)
+		log.Printf("🧹 Retention cleanup enabled: keep %d days, run every %s, batch %d", retentionDays, retentionInterval, retentionBatchSize)
+	}
 
 	// Set up HTTP mux
 	mux := http.NewServeMux()
@@ -65,4 +76,45 @@ func main() {
 
 	log.Println("🚀 Listening on", addr)
 	log.Fatal(http.ListenAndServe(addr, mux))
+}
+
+func getEnvBool(name string) bool {
+	value := strings.TrimSpace(strings.ToLower(os.Getenv(name)))
+	return value == "1" || value == "true" || value == "yes"
+}
+
+func getEnvInt(name string, fallback int) int {
+	value := strings.TrimSpace(os.Getenv(name))
+	if value == "" {
+		return fallback
+	}
+
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return fallback
+	}
+
+	if parsed < 0 {
+		return fallback
+	}
+
+	return parsed
+}
+
+func getEnvDuration(name string, fallback time.Duration) time.Duration {
+	value := strings.TrimSpace(os.Getenv(name))
+	if value == "" {
+		return fallback
+	}
+
+	d, err := time.ParseDuration(value)
+	if err != nil {
+		return fallback
+	}
+
+	if d <= 0 {
+		return fallback
+	}
+
+	return d
 }

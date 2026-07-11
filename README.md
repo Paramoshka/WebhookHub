@@ -55,8 +55,8 @@ WebhookHub provides a simple, developer-friendly solution to these problems.
 - [x] Dead-letter queue management UI
 
 ### v0.3+
-- [ ] Advanced search and filters
-- [ ] Retention / cleanup policies
+- [x] Advanced search and filters
+- [x] Retention / cleanup policies
 - [ ] Export and bulk redelivery tools
 - [ ] Telegram integration
 - [ ] OpenAPI schema
@@ -89,7 +89,7 @@ docker-compose up -d --build
 ### 🔐 Generate Session Key
 
 WebhookHub uses a 32-byte secret key to sign session cookies.  
-You must set this in your `.env` file as `SESSION_HASH_KEY`.
+You must set this in your `.env` file as `SESSION_KEY`.
 
 To generate a secure random key:
 
@@ -97,11 +97,42 @@ To generate a secure random key:
 openssl rand -hex 32
 ```
 
+## ⚙️ Configuration
+
+### Retention cleanup
+
+Retention cleanup is optional and disabled by default. Configure via `.env`:
+
+```dotenv
+# Retention cleanup
+RETENTION_ENABLED=false
+RETENTION_DAYS=30
+RETENTION_INTERVAL=24h
+RETENTION_BATCH_SIZE=300
+```
+
+When enabled, expired webhooks are removed in batches every interval by `received_at`.
+
+### Advanced logs filters (UI and API)
+
+`/dashboard` includes advanced filters in the UI and the same parameters are available via:
+
+`GET /partials/webhooks`
+
+Query params:
+
+- `source`: exact match on webhook source.
+- `status`: exact match on status (`pending`, `retrying`, `success`, `failed`, `dead_lettered`).
+- `q`: full-text search across `source`, payload, headers, last error, and DLQ reason.
+- `from`: lower bound for `received_at` (supports `RFC3339`, `RFC3339Nano`, `2006-01-02T15:04`, `2006-01-02`).
+- `to`: upper bound for `received_at` (supports the same formats as `from`; date-only values are interpreted as end-of-day).
+- `sort`: one of `id_desc` (default), `received_desc`, `received_asc`, `id_asc`.
+- `page`: page number (default `1`), 10 items per page.
+
+Example:
+
 ```bash
-curl -X POST http://localhost:8080/hook/test \
-  -H "Content-Type: application/json" \
-  -H "X-Webhook-Source: test" \
-  -d '{"event":"test.ping","message":"Hello from test curl"}'
+curl "http://localhost:8080/partials/webhooks?source=stripe&status=failed&q=payment&from=2026-07-01&to=2026-07-11T23:59&sort=received_desc&page=2"
 ```
 
 ## 📄 License

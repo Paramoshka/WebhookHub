@@ -24,20 +24,29 @@ type DLQPageData struct {
 func DLQUI(db *storage.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		source := strings.TrimSpace(r.URL.Query().Get("source"))
+		query := storage.WebhookFilter{
+			Source: source,
+			Status: "dead_lettered",
+			Query:  strings.TrimSpace(r.URL.Query().Get("q")),
+			From:   parseWebhookDateTime(r.URL.Query().Get("from"), false),
+			To:     parseWebhookDateTime(r.URL.Query().Get("to"), true),
+		}
+
 		page := parsePage(r.URL.Query().Get("page"))
 		pageSize := 20
 		offset := (page - 1) * pageSize
 
-		webhooks := db.Filtered(source, "dead_lettered", pageSize, offset)
-		total := db.CountFiltered(source, "dead_lettered")
+		webhooks := db.Filtered(query, pageSize, offset)
+		total := db.CountFiltered(query)
 
+		filters := r.URL.Query()
 		data := DLQPageData{
 			Webhooks:    webhooks,
 			Source:      source,
 			CurrentPage: page,
-			CurrentURL:  buildDLQPageURL(source, page),
-			PrevURL:     buildDLQPageURL(source, page-1),
-			NextURL:     buildDLQPageURL(source, page+1),
+			CurrentURL:  buildDLQPageURLWithFilters(filters, page),
+			PrevURL:     buildDLQPageURLWithFilters(filters, page-1),
+			NextURL:     buildDLQPageURLWithFilters(filters, page+1),
 			DisablePrev: page <= 1,
 			DisableNext: page*pageSize >= total,
 		}
@@ -60,16 +69,14 @@ func parsePage(raw string) int {
 	return page
 }
 
-func buildDLQPageURL(source string, page int) string {
-	if page < 1 {
-		page = 1
+func buildDLQPageURLWithFilters(values url.Values, page int) string {
+	filtered := url.Values{}
+	for key, vals := range values {
+		for _, val := range vals {
+			filtered.Add(key, val)
+		}
 	}
+	filtered.Set("page", strconv.Itoa(page))
 
-	values := url.Values{}
-	values.Set("page", strconv.Itoa(page))
-	if source != "" {
-		values.Set("source", source)
-	}
-
-	return "/dlq?" + values.Encode()
+	return "/dlq?" + filtered.Encode()
 }

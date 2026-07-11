@@ -19,7 +19,73 @@
     </div>
   </div>
 
-  <div hx-get="/partials/webhooks" hx-trigger="load, every 5s" hx-swap="innerHTML">
+  <div class="panel">
+    <form id="filter-form" hx-get="/partials/webhooks" hx-target="#webhooks-table" hx-swap="innerHTML" class="rule-form">
+      <div class="section">
+        <div class="section-title">Filters</div>
+
+        <div class="fields grid-2">
+          <label>
+            Source
+            <input type="text" name="source" value="{{.Source}}" placeholder="e.g., stripe" />
+          </label>
+          <label>
+            Status
+            <select name="status">
+              <option value="">Any</option>
+              <option value="success" {{if eq .Status "success"}}selected{{end}}>Success</option>
+              <option value="failed" {{if eq .Status "failed"}}selected{{end}}>Failed</option>
+              <option value="pending" {{if eq .Status "pending"}}selected{{end}}>Pending</option>
+              <option value="retrying" {{if eq .Status "retrying"}}selected{{end}}>Retrying</option>
+              <option value="dead_lettered" {{if eq .Status "dead_lettered"}}selected{{end}}>Dead-Lettered</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="fields grid-2" style="margin-top: 12px">
+          <label>
+            From
+            <input type="datetime-local" name="from" value="{{.From}}" />
+          </label>
+          <label>
+            To
+            <input type="datetime-local" name="to" value="{{.To}}" />
+          </label>
+        </div>
+
+        <label style="margin-top: 12px">
+          Search
+          <input type="text" name="q" value="{{.Query}}" placeholder="Search in source, payload, headers, errors..." />
+        </label>
+
+        <div class="fields grid-2" style="margin-top: 12px">
+          <label>
+            Sort
+            <select name="sort">
+              <option value="id_desc" {{if or (eq .Sort "") (eq .Sort "id_desc")}}selected{{end}}>Newest first (ID)</option>
+              <option value="received_desc" {{if eq .Sort "received_desc"}}selected{{end}}>Newest first (Received)</option>
+              <option value="received_asc" {{if eq .Sort "received_asc"}}selected{{end}}>Oldest first</option>
+              <option value="id_asc" {{if eq .Sort "id_asc"}}selected{{end}}>ID ascending</option>
+            </select>
+          </label>
+          <label>
+            Quick actions
+            <div class="action-buttons" style="margin-top: 1.1rem;">
+              <button class="btn-primary" type="submit">Apply</button>
+              <button
+                type="button"
+                class="btn-secondary"
+                onclick='const form = this.closest("form"); if (form) { form.reset(); htmx.trigger(form, "submit"); }'>
+                Reset
+              </button>
+            </div>
+          </label>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div id="webhooks-table" hx-get="/partials/webhooks" hx-include="#filter-form" hx-trigger="load, every 5s" hx-swap="innerHTML">
     Loading logs...
   </div>
 </section>

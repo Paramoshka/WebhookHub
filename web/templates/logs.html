@@ -1,39 +1,7 @@
-<div>
-  <form id="filter-form" hx-get="/partials/webhooks" hx-target="#logs-table" hx-swap="innerHTML" class="filters">
-    <label>
-      Source:
-      <input type="text" name="source" placeholder="e.g., stripe" />
-    </label>
-    <label>
-      Status:
-      <select name="status">
-        <option value="">All</option>
-        <option value="success">Success</option>
-        <option value="failed">Failed</option>
-        <option value="pending">Pending</option>
-        <option value="retrying">Retrying</option>
-        <option value="dead_lettered">Dead-Lettered</option>
-      </select>
-    </label>
-    <button type="submit">Apply</button>
-  </form>
-</div>
+{{template "partials.html" .}}
 
-<div id="logs-table">
-  {{template "partials.html" .}}
-</div>
-
-<div class="pagination">
-  <button hx-get="/partials/webhooks?page={{.PrevPage}}" hx-target="#logs-table" hx-swap="innerHTML" {{if .DisablePrev}}disabled{{end}}>Prev</button>
+<div class="pagination" style="margin-top: 18px; display: flex; align-items: center; gap: 12px;">
+  <a href="{{.PrevURL}}" hx-get="{{.PrevURL}}" hx-target="#webhooks-table" hx-swap="innerHTML" class="nav-link {{if .DisablePrev}}is-disabled{{end}}">Prev</a>
   <span>Page {{.CurrentPage}}</span>
-  <button hx-get="/partials/webhooks?page={{.NextPage}}" hx-target="#logs-table" hx-swap="innerHTML" {{if .DisableNext}}disabled{{end}}>Next</button>
-</div>
-
-<div id="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000;"
-     _="on click hide me">
-  <div id="modal-content"
-       style="background:white; color:black; padding:2rem; margin:5% auto; width:80%; max-width:800px; border-radius:12px;"
-       _="on click stopPropagation">
-    <!-- Dynamic content will load here -->
-  </div>
+  <a href="{{.NextURL}}" hx-get="{{.NextURL}}" hx-target="#webhooks-table" hx-swap="innerHTML" class="nav-link {{if .DisableNext}}is-disabled{{end}}">Next</a>
 </div>

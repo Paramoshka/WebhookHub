@@ -33,6 +33,6 @@ This document describes the folder structure of the WebhookHub project.
 - `internal/handler`
   Serves the login flow, dashboard, forwarding rules UI, webhook inspection, and DLQ management UI.
 - `internal/storage`
-  Owns filtered webhook queries, forwarding rule persistence, delivery metrics, and due-retry claiming.
+  Owns filtered webhook queries, retention cleanup worker behavior, forwarding rule persistence, delivery metrics, and due-retry claiming.
 - `web/templates`
   Contains the server-rendered HTML templates for the dashboard and admin UI.
