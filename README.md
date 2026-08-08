@@ -26,7 +26,7 @@ WebhookHub provides a simple, developer-friendly solution to these problems.
 - ✅ Receive webhooks at `/hook/:source`
 - ✅ Log full payloads, headers, timestamps
 - ✅ Replay any webhook via Web UI
-- ✅ Forwarding rules per source (fan-out, routing)
+- ✅ Forwarding rule per source
 - ✅ Optional incoming/outgoing HMAC signing (Stripe-style header format)
 - ✅ Web dashboard with filters, pagination
 - ✅ Secure login (admin account)
@@ -57,6 +57,18 @@ WebhookHub provides a simple, developer-friendly solution to these problems.
 ### v0.3+
 - [x] Advanced search and filters
 - [x] Retention / cleanup policies
+
+### v0.3.1 - Production baseline
+- [x] Explicit database error handling
+- [x] Recovery of interrupted deliveries with database leases
+- [x] Bounded delivery worker pool and graceful shutdown
+- [x] Request body limits and source/target validation
+- [x] Required secure configuration with fail-fast validation
+- [x] HTTP method restrictions and CSRF protection
+- [x] Liveness and readiness endpoints
+- [x] CI and critical unit/integration tests
+
+### v0.3.2+
 - [ ] Export and bulk redelivery tools
 - [ ] Telegram integration
 - [ ] OpenAPI schema
@@ -83,6 +95,8 @@ WebhookHub provides a simple, developer-friendly solution to these problems.
 ```bash
 git clone https://github.com/Paramoshka/WebhookHub.git
 cd webhookhub
+cp .env.sample .env
+# Fill every required value in .env before starting the service.
 docker-compose up -d --build
 ```
 
@@ -98,6 +112,36 @@ openssl rand -hex 32
 ```
 
 ## ⚙️ Configuration
+
+WebhookHub validates configuration at startup and exits if a required value is missing or unsafe.
+
+Required values:
+
+- `ADMIN_EMAIL`
+- `ADMIN_PASSWORD` — at least 12 characters
+- `SESSION_KEY` — at least 32 characters; generate it with `openssl rand -hex 32`
+- `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
+
+Production deployments behind HTTPS should set `COOKIE_SECURE=true`. PostgreSQL TLS can be configured with `POSTGRES_SSLMODE` (default: `disable`).
+`ADMIN_EMAIL` and `ADMIN_PASSWORD` are authoritative bootstrap credentials: on startup WebhookHub creates the single admin or updates that account to match the configured values.
+
+Runtime limits and delivery workers:
+
+```dotenv
+PORT=8080
+MAX_BODY_BYTES=1048576
+DELIVERY_WORKERS=4
+DELIVERY_POLL_INTERVAL=1s
+DELIVERY_LEASE_DURATION=30s
+SHUTDOWN_TIMEOUT=10s
+```
+
+Delivery is at-least-once. A database lease lets another worker recover a webhook left in `processing` after a crash. A duplicate remains possible if the target accepted a request but WebhookHub stopped before persisting the result.
+
+Health endpoints:
+
+- `GET /healthz` reports that the process is running.
+- `GET /readyz` reports readiness only when PostgreSQL responds.
 
 ### Retention cleanup
 
@@ -122,7 +166,7 @@ When enabled, expired webhooks are removed in batches every interval by `receive
 Query params:
 
 - `source`: exact match on webhook source.
-- `status`: exact match on status (`pending`, `retrying`, `success`, `failed`, `dead_lettered`).
+- `status`: exact match on status (`pending`, `processing`, `retrying`, `success`, `failed`, `skipped`, `dead_lettered`).
 - `q`: full-text search across `source`, payload, headers, last error, and DLQ reason.
 - `from`: lower bound for `received_at` (supports `RFC3339`, `RFC3339Nano`, `2006-01-02T15:04`, `2006-01-02`).
 - `to`: upper bound for `received_at` (supports the same formats as `from`; date-only values are interpreted as end-of-day).

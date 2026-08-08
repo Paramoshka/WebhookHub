@@ -9,26 +9,49 @@ import (
 
 func DashboardUI(db *storage.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tmpl := template.Must(template.ParseFiles(
+		tmpl, err := template.ParseFiles(
 			"web/templates/base.html",
 			"web/templates/dashboard.html",
-		))
+		)
+		if err != nil {
+			http.Error(w, "Template load failed", http.StatusInternalServerError)
+			return
+		}
 
 		data := WebhookPageData{
-			Source: strings.TrimSpace(r.URL.Query().Get("source")),
-			Status: strings.TrimSpace(r.URL.Query().Get("status")),
-			Query:  strings.TrimSpace(r.URL.Query().Get("q")),
-			Sort:   strings.TrimSpace(r.URL.Query().Get("sort")),
-			From:   strings.TrimSpace(r.URL.Query().Get("from")),
-			To:     strings.TrimSpace(r.URL.Query().Get("to")),
+			Source:    strings.TrimSpace(r.URL.Query().Get("source")),
+			Status:    strings.TrimSpace(r.URL.Query().Get("status")),
+			Query:     strings.TrimSpace(r.URL.Query().Get("q")),
+			Sort:      strings.TrimSpace(r.URL.Query().Get("sort")),
+			From:      strings.TrimSpace(r.URL.Query().Get("from")),
+			To:        strings.TrimSpace(r.URL.Query().Get("to")),
+			CSRFToken: CSRFToken(r),
 		}
-		tmpl.ExecuteTemplate(w, "base", data)
+		if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
+			http.Error(w, "Template render failed", http.StatusInternalServerError)
+		}
 	}
+}
+
+type DeliveryMetricsData struct {
+	storage.DeliveryMetrics
+	CSRFToken string
 }
 
 func DeliveryMetricsPartial(db *storage.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tmpl := template.Must(template.ParseFiles("web/templates/metrics.html"))
-		tmpl.Execute(w, db.DeliveryMetrics())
+		metrics, err := db.DeliveryMetrics()
+		if err != nil {
+			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		tmpl, err := template.ParseFiles("web/templates/metrics.html")
+		if err != nil {
+			http.Error(w, "Template load failed", http.StatusInternalServerError)
+			return
+		}
+		if err := tmpl.Execute(w, DeliveryMetricsData{DeliveryMetrics: metrics, CSRFToken: CSRFToken(r)}); err != nil {
+			http.Error(w, "Template render failed", http.StatusInternalServerError)
+		}
 	}
 }

@@ -1,7 +1,9 @@
 package storage
 
 import (
+	"context"
 	"log"
+	"sync"
 	"time"
 
 	"webhookhub/internal/model"
@@ -9,9 +11,10 @@ import (
 	"gorm.io/gorm"
 )
 
-func StartRetentionWorker(db *DB, retentionDays int, interval time.Duration, batchSize int) {
+func StartRetentionWorker(ctx context.Context, db *DB, retentionDays int, interval time.Duration, batchSize int) *sync.WaitGroup {
+	wg := &sync.WaitGroup{}
 	if db == nil || retentionDays <= 0 || interval <= 0 {
-		return
+		return wg
 	}
 
 	if batchSize <= 0 {
@@ -19,19 +22,29 @@ func StartRetentionWorker(db *DB, retentionDays int, interval time.Duration, bat
 	}
 
 	ticker := time.NewTicker(interval)
+	wg.Add(1)
 	go func() {
-		for range ticker.C {
-			cutoff := time.Now().AddDate(0, 0, -retentionDays)
-			deleted, err := db.CleanupExpiredWebhooks(cutoff, batchSize)
-			if err != nil {
-				log.Printf("cleanup expired webhooks failed: %v", err)
-				continue
-			}
-			if deleted > 0 {
-				log.Printf("cleanup expired webhooks: removed %d records", deleted)
+		defer wg.Done()
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				cutoff := time.Now().AddDate(0, 0, -retentionDays)
+				deleted, err := db.CleanupExpiredWebhooks(cutoff, batchSize)
+				if err != nil {
+					log.Printf("cleanup expired webhooks failed: %v", err)
+					continue
+				}
+				if deleted > 0 {
+					log.Printf("cleanup expired webhooks: removed %d records", deleted)
+				}
 			}
 		}
 	}()
+
+	return wg
 }
 
 func (d *DB) CleanupExpiredWebhooks(before time.Time, batchSize int) (int64, error) {
@@ -44,7 +57,7 @@ func (d *DB) CleanupExpiredWebhooks(before time.Time, batchSize int) (int64, err
 	for {
 		var ids []uint
 		err := d.conn.Model(&model.Webhook{}).
-			Where("received_at < ?", before).
+			Where("received_at < ? AND status NOT IN ?", before, []string{"pending", "processing", "retrying"}).
 			Order("id asc").
 			Limit(batchSize).
 			Pluck("id", &ids).

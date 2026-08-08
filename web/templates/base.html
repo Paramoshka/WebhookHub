@@ -26,6 +26,7 @@
   </nav>
 
   <form action="/logout" method="POST">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
     <button class="btn-secondary" type="submit">Logout</button>
   </form>
 </header>

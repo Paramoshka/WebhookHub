@@ -1,7 +1,11 @@
 package storage
 
 import (
+	"context"
+	"errors"
 	"log"
+	"net"
+	"net/url"
 	"os"
 	"time"
 
@@ -10,142 +14,185 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 type DB struct {
 	conn *gorm.DB
 }
 
-func InitDB() *DB {
-	host := os.Getenv("POSTGRES_HOST")
-	user := os.Getenv("POSTGRES_USER")
-	pass := os.Getenv("POSTGRES_PASSWORD")
-	dbname := os.Getenv("POSTGRES_DB")
-	port := os.Getenv("POSTGRES_PORT")
+var ErrNotFound = errors.New("not found")
 
-	dsn := "host=" + host + " user=" + user + " password=" + pass + " dbname=" + dbname + " port=" + port + " sslmode=disable"
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+type Config struct {
+	Host     string
+	Port     string
+	User     string
+	Password string
+	Name     string
+	SSLMode  string
+}
+
+func Open(config Config) (*DB, error) {
+	databaseURL := &url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(config.User, config.Password),
+		Host:   net.JoinHostPort(config.Host, config.Port),
+		Path:   config.Name,
+	}
+	query := databaseURL.Query()
+	query.Set("sslmode", config.SSLMode)
+	databaseURL.RawQuery = query.Encode()
+
+	databaseLogger := logger.New(
+		log.New(os.Stdout, "", log.LstdFlags),
+		logger.Config{
+			SlowThreshold:             time.Second,
+			LogLevel:                  logger.Warn,
+			IgnoreRecordNotFoundError: true,
+			Colorful:                  false,
+		},
+	)
+	db, err := gorm.Open(postgres.Open(databaseURL.String()), &gorm.Config{Logger: databaseLogger})
 	if err != nil {
-		log.Fatalf("failed to connect to postgres: %v", err)
+		return nil, err
 	}
 
-	// Auto migrate
-	err = db.AutoMigrate(&model.Webhook{}, &model.DeliveryAttempt{}, &model.ForwardingRule{}, &model.User{})
-	if err != nil {
-		log.Fatalf("auto-migrate failed: %v", err)
+	if err := db.AutoMigrate(&model.Webhook{}, &model.DeliveryAttempt{}, &model.ForwardingRule{}, &model.User{}); err != nil {
+		return nil, err
 	}
 
-	// Create admin if not exists
-	var count int64
-	db.Model(&model.User{}).Count(&count)
+	return &DB{conn: db}, nil
+}
 
-	if count == 0 {
-		adminEmail := os.Getenv("ADMIN_EMAIL")
-		if adminEmail == "" {
-			adminEmail = "admin@example.com"
+func (d *DB) EnsureAdmin(email, password string) error {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	return d.conn.Transaction(func(tx *gorm.DB) error {
+		var user model.User
+		err := tx.Where("email = ?", email).First(&user).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			var users []model.User
+			if err := tx.Order("id asc").Limit(2).Find(&users).Error; err != nil {
+				return err
+			}
+			switch len(users) {
+			case 0:
+				return tx.Create(&model.User{
+					Email:    email,
+					Password: string(hashed),
+					IsAdmin:  true,
+				}).Error
+			case 1:
+				user = users[0]
+				err = nil
+			default:
+				return errors.New("ADMIN_EMAIL does not match an existing user")
+			}
 		}
-
-		adminPass := os.Getenv("ADMIN_PASSWORD")
-		if adminPass == "" {
-			adminPass = "admin" // default, for dev only!
-		}
-
-		hashed, err := bcrypt.GenerateFromPassword([]byte(adminPass), bcrypt.DefaultCost)
 		if err != nil {
-			log.Fatal("failed to hash admin password:", err)
+			return err
+		}
+		if user.IsAdmin && bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)) == nil {
+			return nil
 		}
 
-		admin := model.User{
-			Email:    adminEmail,
-			Password: string(hashed),
-			IsAdmin:  true,
-		}
-
-		if err := db.Create(&admin).Error; err != nil {
-			log.Fatal("failed to create admin user:", err)
-		}
-
-		log.Println("✅ Admin user created:", adminEmail)
-	}
-
-	return &DB{conn: db}
+		return tx.Model(&user).Updates(map[string]any{
+			"email":    email,
+			"password": string(hashed),
+			"is_admin": true,
+		}).Error
+	})
 }
 
-// Save webhook
-func (d *DB) Save(h *model.Webhook) {
-	if err := d.conn.Create(&h).Error; err != nil {
-		log.Println("DB Save Error:", err)
+func (d *DB) Ping(ctx context.Context) error {
+	sqlDB, err := d.conn.DB()
+	if err != nil {
+		return err
 	}
+	return sqlDB.PingContext(ctx)
 }
 
-// Get all webhooks
-func (d *DB) All() []model.Webhook {
+func (d *DB) Close() error {
+	sqlDB, err := d.conn.DB()
+	if err != nil {
+		return err
+	}
+	return sqlDB.Close()
+}
+
+func (d *DB) Save(h *model.Webhook) error {
+	return d.conn.Create(h).Error
+}
+
+func (d *DB) All() ([]model.Webhook, error) {
 	var list []model.Webhook
-	d.conn.Order("id desc").Find(&list)
-	return list
+	err := d.conn.Order("id desc").Find(&list).Error
+	return list, err
 }
 
-// Find webhook by ID
-func (d *DB) FindByID(id string) (model.Webhook, bool) {
+func (d *DB) FindByID(id string) (model.Webhook, error) {
 	var h model.Webhook
-	result := d.conn.First(&h, id)
-	return h, result.Error == nil
-}
-
-func (d *DB) UpdateResponseFromForward(id int, resp []byte) {
-	d.conn.Model(&model.Webhook{}).Where("id = ?", id).Update("response", resp)
-}
-
-func (d *DB) ResetWebhookDeliveryState(id int) {
-	if err := d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(map[string]any{
-		"status":             "pending",
-		"response":           []byte(nil),
-		"failure_count":      0,
-		"last_error":         "",
-		"next_retry_at":      nil,
-		"dead_lettered_at":   nil,
-		"dead_letter_reason": "",
-	}).Error; err != nil {
-		log.Println("DB ResetWebhookDeliveryState Error:", err)
+	err := d.conn.First(&h, id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.Webhook{}, ErrNotFound
 	}
+	return h, err
 }
 
-func (d *DB) MarkWebhookDeliverySuccess(id int) {
-	if err := d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(map[string]any{
-		"status":             "success",
-		"failure_count":      0,
-		"last_error":         "",
-		"next_retry_at":      nil,
-		"dead_lettered_at":   nil,
-		"dead_letter_reason": "",
-	}).Error; err != nil {
-		log.Println("DB MarkWebhookDeliverySuccess Error:", err)
-	}
+func (d *DB) UpdateResponseFromForward(id int, resp []byte) error {
+	return d.conn.Model(&model.Webhook{}).Where("id = ?", id).Update("response", resp).Error
 }
 
-func (d *DB) MarkWebhookDeliverySkipped(id int) {
-	if err := d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(map[string]any{
-		"status":             "skipped",
-		"failure_count":      0,
-		"last_error":         "",
-		"next_retry_at":      nil,
-		"dead_lettered_at":   nil,
-		"dead_letter_reason": "",
-	}).Error; err != nil {
-		log.Println("DB MarkWebhookDeliverySkipped Error:", err)
-	}
+func (d *DB) ResetWebhookDeliveryState(id int) error {
+	return d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(map[string]any{
+		"status":               "pending",
+		"response":             []byte(nil),
+		"failure_count":        0,
+		"last_error":           "",
+		"next_retry_at":        nil,
+		"delivery_lease_until": nil,
+		"dead_lettered_at":     nil,
+		"dead_letter_reason":   "",
+	}).Error
 }
 
-func (d *DB) MarkWebhookDeliveryFailed(id int, reason string, maxFailures int) string {
+func (d *DB) MarkWebhookDeliverySuccess(id int) error {
+	return d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(map[string]any{
+		"status":               "success",
+		"failure_count":        0,
+		"last_error":           "",
+		"next_retry_at":        nil,
+		"delivery_lease_until": nil,
+		"dead_lettered_at":     nil,
+		"dead_letter_reason":   "",
+	}).Error
+}
+
+func (d *DB) MarkWebhookDeliverySkipped(id int) error {
+	return d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(map[string]any{
+		"status":               "skipped",
+		"failure_count":        0,
+		"last_error":           "",
+		"next_retry_at":        nil,
+		"delivery_lease_until": nil,
+		"dead_lettered_at":     nil,
+		"dead_letter_reason":   "",
+	}).Error
+}
+
+func (d *DB) MarkWebhookDeliveryFailed(id int, reason string, maxFailures int) (string, error) {
 	var webhook model.Webhook
 	if err := d.conn.First(&webhook, id).Error; err != nil {
-		log.Println("DB MarkWebhookDeliveryFailed Load Error:", err)
-		return "failed"
+		return "failed", err
 	}
 
 	nextFailureCount := webhook.FailureCount + 1
 	updates := map[string]any{
-		"failure_count": nextFailureCount,
+		"failure_count":        nextFailureCount,
+		"delivery_lease_until": nil,
 	}
 
 	status := "failed"
@@ -166,29 +213,35 @@ func (d *DB) MarkWebhookDeliveryFailed(id int, reason string, maxFailures int) s
 	}
 
 	if err := d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(updates).Error; err != nil {
-		log.Println("DB MarkWebhookDeliveryFailed Update Error:", err)
-		return "failed"
+		return "failed", err
 	}
 
-	return status
+	return status, nil
 }
 
-func (d *DB) MarkWebhookRetryScheduled(id int, failureCount int, reason string, nextRetryAt time.Time) {
-	if err := d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(map[string]any{
-		"status":             "retrying",
-		"failure_count":      failureCount,
-		"last_error":         reason,
-		"next_retry_at":      &nextRetryAt,
-		"dead_lettered_at":   nil,
-		"dead_letter_reason": "",
-	}).Error; err != nil {
-		log.Println("DB MarkWebhookRetryScheduled Error:", err)
-	}
+func (d *DB) MarkWebhookRetryScheduled(id int, failureCount int, reason string, nextRetryAt time.Time) error {
+	return d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(map[string]any{
+		"status":               "retrying",
+		"failure_count":        failureCount,
+		"last_error":           reason,
+		"next_retry_at":        &nextRetryAt,
+		"delivery_lease_until": nil,
+		"dead_lettered_at":     nil,
+		"dead_letter_reason":   "",
+	}).Error
 }
 
-// Delete webhook
-func (d *DB) DeleteWebhook(id int) {
-	if err := d.conn.Transaction(func(tx *gorm.DB) error {
+func (d *DB) ReleaseWebhookLease(id int) error {
+	return d.conn.Model(&model.Webhook{}).
+		Where("id = ? AND status = ?", id, "processing").
+		Updates(map[string]any{
+			"status":               "pending",
+			"delivery_lease_until": nil,
+		}).Error
+}
+
+func (d *DB) DeleteWebhook(id int) error {
+	return d.conn.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("webhook_id = ?", id).Delete(&model.DeliveryAttempt{}).Error; err != nil {
 			return err
 		}
@@ -196,12 +249,9 @@ func (d *DB) DeleteWebhook(id int) {
 			return err
 		}
 		return nil
-	}); err != nil {
-		log.Println("DB DeleteWebhook Error:", err)
-	}
+	})
 }
 
-// Delete forwarding rule
-func (d *DB) DeleteForwardingRule(source string) {
-	d.conn.Where("source = ?", source).Delete(&model.ForwardingRule{})
+func (d *DB) DeleteForwardingRule(source string) error {
+	return d.conn.Where("source = ?", source).Delete(&model.ForwardingRule{}).Error
 }

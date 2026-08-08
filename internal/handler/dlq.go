@@ -19,6 +19,7 @@ type DLQPageData struct {
 	NextURL     string
 	DisablePrev bool
 	DisableNext bool
+	CSRFToken   string
 }
 
 func DLQUI(db *storage.DB) http.HandlerFunc {
@@ -36,8 +37,16 @@ func DLQUI(db *storage.DB) http.HandlerFunc {
 		pageSize := 20
 		offset := (page - 1) * pageSize
 
-		webhooks := db.Filtered(query, pageSize, offset)
-		total := db.CountFiltered(query)
+		webhooks, err := db.Filtered(query, pageSize, offset)
+		if err != nil {
+			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		total, err := db.CountFiltered(query)
+		if err != nil {
+			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
+			return
+		}
 
 		filters := r.URL.Query()
 		data := DLQPageData{
@@ -49,12 +58,17 @@ func DLQUI(db *storage.DB) http.HandlerFunc {
 			NextURL:     buildDLQPageURLWithFilters(filters, page+1),
 			DisablePrev: page <= 1,
 			DisableNext: page*pageSize >= total,
+			CSRFToken:   CSRFToken(r),
 		}
 
-		tmpl := template.Must(template.ParseFiles(
+		tmpl, err := template.ParseFiles(
 			"web/templates/base.html",
 			"web/templates/dlq.html",
-		))
+		)
+		if err != nil {
+			http.Error(w, "Template load failed", http.StatusInternalServerError)
+			return
+		}
 		if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
 			http.Error(w, "Template render failed", http.StatusInternalServerError)
 		}

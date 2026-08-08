@@ -1,0 +1,69 @@
+package main
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"webhookhub/internal/handler"
+)
+
+func TestLoadConfigRejectsWeakSecrets(t *testing.T) {
+	setValidConfigEnvironment(t)
+	t.Setenv("SESSION_KEY", "short")
+
+	if _, err := loadConfig(); err == nil {
+		t.Fatal("expected weak session key to be rejected")
+	}
+}
+
+func TestLoadConfigAcceptsValidEnvironment(t *testing.T) {
+	setValidConfigEnvironment(t)
+
+	config, err := loadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.DeliveryWorkers != 4 || config.MaxBodyBytes != 1<<20 {
+		t.Fatalf("unexpected defaults: %+v", config)
+	}
+}
+
+func TestRoutesEnforceWebhookMethod(t *testing.T) {
+	auth, err := handler.NewAuth(strings.Repeat("a", 32), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodGet, "/hook/stripe", nil)
+	response := httptest.NewRecorder()
+
+	routes(nil, auth, 1024).ServeHTTP(response, request)
+
+	if response.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected status %d, got %d", http.StatusMethodNotAllowed, response.Code)
+	}
+}
+
+func setValidConfigEnvironment(t *testing.T) {
+	t.Helper()
+	t.Setenv("POSTGRES_HOST", "localhost")
+	t.Setenv("POSTGRES_PORT", "5432")
+	t.Setenv("POSTGRES_USER", "webhookhub")
+	t.Setenv("POSTGRES_PASSWORD", "database-password")
+	t.Setenv("POSTGRES_DB", "webhookhub")
+	t.Setenv("ADMIN_EMAIL", "admin@example.com")
+	t.Setenv("ADMIN_PASSWORD", "strong-password")
+	t.Setenv("SESSION_KEY", strings.Repeat("s", 32))
+	t.Setenv("COOKIE_SECURE", "false")
+	t.Setenv("PORT", "")
+	t.Setenv("MAX_BODY_BYTES", "")
+	t.Setenv("DELIVERY_WORKERS", "")
+	t.Setenv("DELIVERY_POLL_INTERVAL", "")
+	t.Setenv("DELIVERY_LEASE_DURATION", "")
+	t.Setenv("SHUTDOWN_TIMEOUT", "")
+	t.Setenv("RETENTION_ENABLED", "")
+	t.Setenv("RETENTION_DAYS", "")
+	t.Setenv("RETENTION_INTERVAL", "")
+	t.Setenv("RETENTION_BATCH_SIZE", "")
+}

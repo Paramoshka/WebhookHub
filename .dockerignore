@@ -1,0 +1,6 @@
+.git
+.github
+.env
+.gocache
+data
+webhooks.db

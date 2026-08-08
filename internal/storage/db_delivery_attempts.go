@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"log"
 	"sort"
 	"time"
 	"webhookhub/internal/model"
@@ -37,63 +36,57 @@ type sourceStatusCount struct {
 	Count  int64
 }
 
-func (d *DB) CreateDeliveryAttempt(attempt *model.DeliveryAttempt) uint {
+func (d *DB) CreateDeliveryAttempt(attempt *model.DeliveryAttempt) (uint, error) {
 	if err := d.conn.Create(attempt).Error; err != nil {
-		log.Println("DB CreateDeliveryAttempt Error:", err)
-		return 0
+		return 0, err
 	}
-	return attempt.ID
+	return attempt.ID, nil
 }
 
-func (d *DB) FinishDeliveryAttempt(id uint, status string, httpStatus int, errMsg string, durationMS int64) {
+func (d *DB) FinishDeliveryAttempt(id uint, status string, httpStatus int, errMsg string, durationMS int64) error {
 	if id == 0 {
-		return
+		return nil
 	}
 
 	completedAt := time.Now()
-	if err := d.conn.Model(&model.DeliveryAttempt{}).Where("id = ?", id).Updates(map[string]any{
+	return d.conn.Model(&model.DeliveryAttempt{}).Where("id = ?", id).Updates(map[string]any{
 		"status":        status,
 		"http_status":   httpStatus,
 		"error_message": errMsg,
 		"duration_ms":   durationMS,
 		"completed_at":  &completedAt,
-	}).Error; err != nil {
-		log.Println("DB FinishDeliveryAttempt Error:", err)
-	}
+	}).Error
 }
 
-func (d *DB) DeliveryAttemptsByWebhook(webhookID uint) []model.DeliveryAttempt {
+func (d *DB) DeliveryAttemptsByWebhook(webhookID uint) ([]model.DeliveryAttempt, error) {
 	var attempts []model.DeliveryAttempt
-	if err := d.conn.Where("webhook_id = ?", webhookID).Order("id desc").Find(&attempts).Error; err != nil {
-		log.Println("DB DeliveryAttemptsByWebhook Error:", err)
-		return nil
-	}
-	return attempts
+	err := d.conn.Where("webhook_id = ?", webhookID).Order("id desc").Find(&attempts).Error
+	return attempts, err
 }
 
-func (d *DB) DeliveryMetrics() DeliveryMetrics {
+func (d *DB) DeliveryMetrics() (DeliveryMetrics, error) {
 	metrics := DeliveryMetrics{}
 
 	if err := d.conn.Model(&model.Webhook{}).Count(&metrics.TotalWebhooks).Error; err != nil {
-		log.Println("DB DeliveryMetrics TotalWebhooks Error:", err)
+		return metrics, err
 	}
 	if err := d.conn.Model(&model.DeliveryAttempt{}).Count(&metrics.TotalAttempts).Error; err != nil {
-		log.Println("DB DeliveryMetrics TotalAttempts Error:", err)
+		return metrics, err
 	}
 	if err := d.conn.Model(&model.DeliveryAttempt{}).Where("status = ?", "success").Count(&metrics.SuccessCount).Error; err != nil {
-		log.Println("DB DeliveryMetrics SuccessCount Error:", err)
+		return metrics, err
 	}
 	if err := d.conn.Model(&model.DeliveryAttempt{}).Where("status = ?", "failed").Count(&metrics.FailedCount).Error; err != nil {
-		log.Println("DB DeliveryMetrics FailedCount Error:", err)
+		return metrics, err
 	}
 	if err := d.conn.Model(&model.DeliveryAttempt{}).Where("status = ?", "pending").Count(&metrics.PendingCount).Error; err != nil {
-		log.Println("DB DeliveryMetrics PendingCount Error:", err)
+		return metrics, err
 	}
 	if err := d.conn.Model(&model.DeliveryAttempt{}).Where("status = ?", "skipped").Count(&metrics.SkippedCount).Error; err != nil {
-		log.Println("DB DeliveryMetrics SkippedCount Error:", err)
+		return metrics, err
 	}
 	if err := d.conn.Model(&model.Webhook{}).Where("status = ?", "dead_lettered").Count(&metrics.DeadLetterCount).Error; err != nil {
-		log.Println("DB DeliveryMetrics DeadLetterCount Error:", err)
+		return metrics, err
 	}
 
 	completedAttempts := metrics.SuccessCount + metrics.FailedCount
@@ -102,10 +95,10 @@ func (d *DB) DeliveryMetrics() DeliveryMetrics {
 	}
 
 	if err := d.conn.Where("status = ?", "failed").Order("started_at desc").Limit(5).Find(&metrics.RecentFailures).Error; err != nil {
-		log.Println("DB DeliveryMetrics RecentFailures Error:", err)
+		return metrics, err
 	}
 	if err := d.conn.Where("status = ?", "dead_lettered").Order("dead_lettered_at desc").Limit(10).Find(&metrics.RecentDeadLetters).Error; err != nil {
-		log.Println("DB DeliveryMetrics RecentDeadLetters Error:", err)
+		return metrics, err
 	}
 
 	var rows []sourceStatusCount
@@ -113,7 +106,7 @@ func (d *DB) DeliveryMetrics() DeliveryMetrics {
 		Select("source, status, count(*) as count").
 		Group("source, status").
 		Scan(&rows).Error; err != nil {
-		log.Println("DB DeliveryMetrics SourceBreakdown Error:", err)
+		return metrics, err
 	}
 
 	bySource := make(map[string]*SourceDeliveryMetric)
@@ -149,5 +142,5 @@ func (d *DB) DeliveryMetrics() DeliveryMetrics {
 		return metrics.SourceBreakdown[i].Source < metrics.SourceBreakdown[j].Source
 	})
 
-	return metrics
+	return metrics, nil
 }

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -25,6 +26,7 @@ type WebhookPageData struct {
 	From        string
 	To          string
 	Sort        string
+	CSRFToken   string
 }
 
 type InspectWebhookData struct {
@@ -38,8 +40,16 @@ func WebhookPartial(db *storage.DB) http.HandlerFunc {
 		pageSize := 10
 		offset := (page - 1) * pageSize
 
-		hooks := db.Filtered(filter, pageSize, offset)
-		total := db.CountFiltered(filter)
+		hooks, err := db.Filtered(filter, pageSize, offset)
+		if err != nil {
+			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		total, err := db.CountFiltered(filter)
+		if err != nil {
+			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
+			return
+		}
 
 		prevURL := ""
 		nextURL := ""
@@ -49,7 +59,11 @@ func WebhookPartial(db *storage.DB) http.HandlerFunc {
 		prevURL = buildWebhookListURL(query, page-1)
 		nextURL = buildWebhookListURL(query, page+1)
 
-		tmpl := template.Must(template.ParseFiles("web/templates/logs.html", "web/templates/partials.html"))
+		tmpl, err := template.ParseFiles("web/templates/logs.html", "web/templates/partials.html")
+		if err != nil {
+			http.Error(w, "Template load failed", http.StatusInternalServerError)
+			return
+		}
 
 		data := WebhookPageData{
 			Webhooks:    hooks,
@@ -65,6 +79,7 @@ func WebhookPartial(db *storage.DB) http.HandlerFunc {
 			From:        formatDateTimeInput(filter.From),
 			To:          formatDateTimeInput(filter.To),
 			Sort:        filter.Sort,
+			CSRFToken:   CSRFToken(r),
 		}
 
 		if err := tmpl.Execute(w, data); err != nil {
@@ -151,16 +166,29 @@ func cloneURLValues(values url.Values) url.Values {
 func InspectWebhook(db *storage.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := strings.TrimPrefix(r.URL.Path, "/partials/webhook/")
-		webhook, found := db.FindByID(id)
-		if !found {
+		webhook, err := db.FindByID(id)
+		if errors.Is(err, storage.ErrNotFound) {
 			http.NotFound(w, r)
 			return
 		}
+		if err != nil {
+			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		attempts, err := db.DeliveryAttemptsByWebhook(webhook.ID)
+		if err != nil {
+			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
+			return
+		}
 
-		tmpl := template.Must(template.ParseFiles("web/templates/inspect.html"))
+		tmpl, err := template.ParseFiles("web/templates/inspect.html")
+		if err != nil {
+			http.Error(w, "Template load failed", http.StatusInternalServerError)
+			return
+		}
 		if err := tmpl.Execute(w, InspectWebhookData{
 			Webhook:  webhook,
-			Attempts: db.DeliveryAttemptsByWebhook(webhook.ID),
+			Attempts: attempts,
 		}); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}

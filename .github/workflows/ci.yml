@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: webhookhub_test
+          POSTGRES_USER: webhookhub
+          POSTGRES_PASSWORD: webhookhub_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U webhookhub -d webhookhub_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      TEST_POSTGRES_HOST: localhost
+      TEST_POSTGRES_PORT: "5432"
+      TEST_POSTGRES_USER: webhookhub
+      TEST_POSTGRES_PASSWORD: webhookhub_test_password
+      TEST_POSTGRES_DB: webhookhub_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test -race ./...
+      - run: go vet ./...
+      - run: go build ./cmd/webhookhub

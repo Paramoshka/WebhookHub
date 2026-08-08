@@ -13,6 +13,7 @@
     <p class="lead">Use the admin account to inspect traffic, manage forwarding and replay deliveries.</p>
 
     <form method="POST" action="/login" class="login-form">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       <label>Username
         <input type="text" name="username" required />
       </label>

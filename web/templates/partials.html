@@ -20,6 +20,7 @@
         <div class="table-actions">
           <a
             hx-post="/api/webhooks/replay?id={{.ID}}"
+            hx-headers='{"X-CSRF-Token":"{{$.CSRFToken}}"}'
             hx-swap="outerHTML"
             hx-target="this"
             hx-trigger="click"
@@ -32,6 +33,7 @@
             href="#"
             onclick="if(confirm('Delete this webhook?')) { this.setAttribute('hx-post', '/api/webhooks/delete?id={{.ID}}'); }"
             hx-post="/api/webhooks/delete?id={{.ID}}"
+            hx-headers='{"X-CSRF-Token":"{{$.CSRFToken}}"}'
             hx-target="#webhook-{{.ID}}"
             hx-swap="outerHTML"
             class="action-link action-link-danger"

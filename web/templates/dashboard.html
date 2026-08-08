@@ -36,6 +36,7 @@
               <option value="success" {{if eq .Status "success"}}selected{{end}}>Success</option>
               <option value="failed" {{if eq .Status "failed"}}selected{{end}}>Failed</option>
               <option value="pending" {{if eq .Status "pending"}}selected{{end}}>Pending</option>
+              <option value="processing" {{if eq .Status "processing"}}selected{{end}}>Processing</option>
               <option value="retrying" {{if eq .Status "retrying"}}selected{{end}}>Retrying</option>
               <option value="dead_lettered" {{if eq .Status "dead_lettered"}}selected{{end}}>Dead-Lettered</option>
             </select>

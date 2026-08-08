@@ -534,6 +534,11 @@ button:focus-visible {
     background: rgba(92, 200, 255, 0.16);
 }
 
+.status-processing {
+    color: #c1b5ff;
+    background: rgba(153, 128, 255, 0.16);
+}
+
 .status-skipped {
     color: #c7d4e1;
     background: rgba(199, 212, 225, 0.1);

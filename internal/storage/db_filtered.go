@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"log"
 	"strings"
 	"time"
 	"webhookhub/internal/model"
@@ -18,7 +17,7 @@ type WebhookFilter struct {
 	Sort   string
 }
 
-func (d *DB) Filtered(filter WebhookFilter, limit, offset int) []model.Webhook {
+func (d *DB) Filtered(filter WebhookFilter, limit, offset int) ([]model.Webhook, error) {
 	var list []model.Webhook
 
 	query := d.applyWebhookFilter(d.conn.Model(&model.Webhook{}), filter)
@@ -28,25 +27,15 @@ func (d *DB) Filtered(filter WebhookFilter, limit, offset int) []model.Webhook {
 		Offset(offset).
 		Find(&list).Error
 
-	if err != nil {
-		log.Println("DB Filtered Query Error:", err)
-		return nil
-	}
-
-	return list
+	return list, err
 }
 
-func (d *DB) CountFiltered(filter WebhookFilter) int {
+func (d *DB) CountFiltered(filter WebhookFilter) (int, error) {
 	var count int64
 
 	query := d.applyWebhookFilter(d.conn.Model(&model.Webhook{}), filter)
 	err := query.Count(&count).Error
-	if err != nil {
-		log.Println("DB CountFiltered Error:", err)
-		return 0
-	}
-
-	return int(count)
+	return int(count), err
 }
 
 func (d *DB) applyWebhookFilter(query *gorm.DB, filter WebhookFilter) *gorm.DB {

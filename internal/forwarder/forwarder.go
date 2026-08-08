@@ -3,28 +3,43 @@ package forwarder
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 	"webhookhub/internal/hmacsig"
 	"webhookhub/internal/model"
 	"webhookhub/internal/storage"
 )
 
-var timeout = 5 * time.Second
+const timeout = 5 * time.Second
+
+var deliveryClient = &http.Client{Timeout: timeout}
 
 const maxBody = int64(1 << 20)
 const DefaultMaxAttempts = 3
 const DefaultBackoffSeconds = 2
 const maxBackoffDelay = 30 * time.Second
 
-func Forward(db *storage.DB, h *model.Webhook) {
-	rule, found := db.GetForwardingRule(h.Source)
-	if !found || rule.Target == "" {
-		recordSkippedAttempt(db, h, rule.Target)
-		return
+type WorkerConfig struct {
+	Count         int
+	PollInterval  time.Duration
+	LeaseDuration time.Duration
+}
+
+func Forward(ctx context.Context, db *storage.DB, h *model.Webhook) error {
+	rule, err := db.GetForwardingRule(h.Source)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return recordSkippedAttempt(db, h, "")
+		}
+		return fmt.Errorf("load forwarding rule: %w", err)
+	}
+	if rule.Target == "" {
+		return recordSkippedAttempt(db, h, "")
 	}
 
 	maxAttempts := normalizeMaxAttempts(rule.RetryMaxAttempts)
@@ -32,64 +47,125 @@ func Forward(db *storage.DB, h *model.Webhook) {
 	attemptNumber := h.FailureCount + 1
 
 	startedAt := time.Now()
-	attemptID := db.CreateDeliveryAttempt(&model.DeliveryAttempt{
+	attemptID, err := db.CreateDeliveryAttempt(&model.DeliveryAttempt{
 		WebhookID: h.ID,
 		Source:    h.Source,
 		Target:    rule.Target,
 		Status:    "pending",
 		StartedAt: startedAt,
 	})
+	if err != nil {
+		return fmt.Errorf("create delivery attempt: %w", err)
+	}
 
-	httpStatus, responseBody, errorMessage, success := performDeliveryAttempt(rule, h)
-	db.UpdateResponseFromForward(int(h.ID), responseBody)
+	httpStatus, responseBody, errorMessage, success := performDeliveryAttempt(ctx, rule, h)
+	if err := db.UpdateResponseFromForward(int(h.ID), responseBody); err != nil {
+		return fmt.Errorf("store forwarding response: %w", err)
+	}
 
 	attemptStatus := "failed"
 	if success {
 		attemptStatus = "success"
 	}
+	if ctx.Err() != nil {
+		attemptStatus = "cancelled"
+	}
 
-	db.FinishDeliveryAttempt(attemptID, attemptStatus, httpStatus, errorMessage, time.Since(startedAt).Milliseconds())
+	if err := db.FinishDeliveryAttempt(attemptID, attemptStatus, httpStatus, errorMessage, time.Since(startedAt).Milliseconds()); err != nil {
+		return fmt.Errorf("finish delivery attempt: %w", err)
+	}
+
+	if ctx.Err() != nil {
+		if err := db.ReleaseWebhookLease(int(h.ID)); err != nil {
+			return fmt.Errorf("release cancelled delivery: %w", err)
+		}
+		return ctx.Err()
+	}
 
 	if success {
-		db.MarkWebhookDeliverySuccess(int(h.ID))
+		if err := db.MarkWebhookDeliverySuccess(int(h.ID)); err != nil {
+			return fmt.Errorf("mark delivery successful: %w", err)
+		}
 		log.Printf("✅ Forwarded webhook ID %d to %s on attempt %d/%d\n", h.ID, rule.Target, attemptNumber, maxAttempts)
-		return
+		return nil
 	}
 
 	if attemptNumber >= maxAttempts {
-		finalStatus := db.MarkWebhookDeliveryFailed(int(h.ID), errorMessage, maxAttempts)
+		finalStatus, err := db.MarkWebhookDeliveryFailed(int(h.ID), errorMessage, maxAttempts)
+		if err != nil {
+			return fmt.Errorf("mark delivery failed: %w", err)
+		}
 		log.Printf("❌ Webhook ID %d moved to %s after %d failed attempts\n", h.ID, finalStatus, attemptNumber)
-		return
+		return nil
 	}
 
 	delay := retryDelay(backoffSeconds, attemptNumber)
 	nextRetryAt := time.Now().Add(delay)
-	db.MarkWebhookRetryScheduled(int(h.ID), attemptNumber, errorMessage, nextRetryAt)
+	if err := db.MarkWebhookRetryScheduled(int(h.ID), attemptNumber, errorMessage, nextRetryAt); err != nil {
+		return fmt.Errorf("schedule delivery retry: %w", err)
+	}
 	log.Printf("⚠️ Delivery attempt %d/%d for webhook ID %d failed, scheduled retry at %s\n", attemptNumber, maxAttempts, h.ID, nextRetryAt.Format(time.RFC3339))
+	return nil
 }
 
-func StartRetryWorker(db *storage.DB, interval time.Duration, batchSize int) {
-	if interval <= 0 {
-		interval = 5 * time.Second
+func StartWorkerPool(ctx context.Context, db *storage.DB, config WorkerConfig) *sync.WaitGroup {
+	if config.Count <= 0 {
+		config.Count = 4
 	}
-	if batchSize <= 0 {
-		batchSize = 20
+	if config.PollInterval <= 0 {
+		config.PollInterval = time.Second
+	}
+	if config.LeaseDuration <= 0 {
+		config.LeaseDuration = 30 * time.Second
 	}
 
-	ticker := time.NewTicker(interval)
-	go func() {
-		for range ticker.C {
-			hooks := db.ClaimDueRetryWebhooks(batchSize, time.Now())
-			for i := range hooks {
-				hook := hooks[i]
-				go Forward(db, &hook)
-			}
+	wg := &sync.WaitGroup{}
+	for workerID := 1; workerID <= config.Count; workerID++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			runWorker(ctx, db, config, id)
+		}(workerID)
+	}
+
+	return wg
+}
+
+func runWorker(ctx context.Context, db *storage.DB, config WorkerConfig, workerID int) {
+	for {
+		if ctx.Err() != nil {
+			return
 		}
-	}()
+
+		now := time.Now()
+		hooks, err := db.ClaimDeliverableWebhooks(1, now, now.Add(config.LeaseDuration))
+		if err != nil {
+			log.Printf("delivery worker %d failed to claim webhook: %v", workerID, err)
+		} else if len(hooks) > 0 {
+			if err := Forward(ctx, db, &hooks[0]); err != nil && !errors.Is(err, context.Canceled) {
+				log.Printf("delivery worker %d failed webhook %d: %v", workerID, hooks[0].ID, err)
+			}
+			continue
+		}
+
+		timer := time.NewTimer(config.PollInterval)
+		select {
+		case <-ctx.Done():
+			if !timer.Stop() {
+				<-timer.C
+			}
+			return
+		case <-timer.C:
+		}
+	}
 }
 
-func performDeliveryAttempt(rule model.ForwardingRule, h *model.Webhook) (int, []byte, string, bool) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+func performDeliveryAttempt(parent context.Context, rule model.ForwardingRule, h *model.Webhook) (int, []byte, string, bool) {
+	return performDeliveryAttemptWithClient(parent, deliveryClient, rule, h)
+}
+
+func performDeliveryAttemptWithClient(parent context.Context, client *http.Client, rule model.ForwardingRule, h *model.Webhook) (int, []byte, string, bool) {
+	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, rule.Target, bytes.NewBuffer(h.Payload))
@@ -104,7 +180,6 @@ func performDeliveryAttempt(rule model.ForwardingRule, h *model.Webhook) (int, [
 		req.Header.Set(hmacsig.OutgoingHeader, hmacsig.SignHeader(rule.OutgoingSecret, h.Payload, time.Now()))
 	}
 
-	client := &http.Client{Timeout: timeout}
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Printf("❌ Forwarding to %s failed: %v\n", rule.Target, err)
@@ -129,19 +204,27 @@ func performDeliveryAttempt(rule model.ForwardingRule, h *model.Webhook) (int, [
 	return resp.StatusCode, body, "", true
 }
 
-func recordSkippedAttempt(db *storage.DB, h *model.Webhook, target string) {
+func recordSkippedAttempt(db *storage.DB, h *model.Webhook, target string) error {
 	startedAt := time.Now()
-	attemptID := db.CreateDeliveryAttempt(&model.DeliveryAttempt{
+	attemptID, err := db.CreateDeliveryAttempt(&model.DeliveryAttempt{
 		WebhookID: h.ID,
 		Source:    h.Source,
 		Target:    target,
 		Status:    "pending",
 		StartedAt: startedAt,
 	})
+	if err != nil {
+		return fmt.Errorf("create skipped delivery attempt: %w", err)
+	}
 
-	db.FinishDeliveryAttempt(attemptID, "skipped", 0, "no forwarding target configured", time.Since(startedAt).Milliseconds())
-	db.MarkWebhookDeliverySkipped(int(h.ID))
+	if err := db.FinishDeliveryAttempt(attemptID, "skipped", 0, "no forwarding target configured", time.Since(startedAt).Milliseconds()); err != nil {
+		return fmt.Errorf("finish skipped delivery attempt: %w", err)
+	}
+	if err := db.MarkWebhookDeliverySkipped(int(h.ID)); err != nil {
+		return fmt.Errorf("mark delivery skipped: %w", err)
+	}
 	log.Printf("⚠️ No forwarding target for source '%s'\n", h.Source)
+	return nil
 }
 
 func normalizeMaxAttempts(value int) int {

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"html/template"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"webhookhub/internal/forwarder"
@@ -12,14 +13,32 @@ import (
 	"webhookhub/internal/storage"
 )
 
+type ForwardingPageData struct {
+	Rules     []model.ForwardingRule
+	CSRFToken string
+}
+
+type EditForwardingData struct {
+	Rule      model.ForwardingRule
+	CSRFToken string
+}
+
 func ForwardingUI(db *storage.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		rules := db.GetForwardingRules()
-		tmpl := template.Must(template.ParseFiles(
+		rules, err := db.GetForwardingRules()
+		if err != nil {
+			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		tmpl, err := template.ParseFiles(
 			"web/templates/base.html",
 			"web/templates/forwarding.html",
-		))
-		if err := tmpl.ExecuteTemplate(w, "base", rules); err != nil {
+		)
+		if err != nil {
+			http.Error(w, "Template load failed", http.StatusInternalServerError)
+			return
+		}
+		if err := tmpl.ExecuteTemplate(w, "base", ForwardingPageData{Rules: rules, CSRFToken: CSRFToken(r)}); err != nil {
 			http.Error(w, "Template render failed", http.StatusInternalServerError)
 		}
 	}
@@ -37,7 +56,10 @@ func SaveForwardingRule(db *storage.DB) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		db.SaveForwardingRule(rule)
+		if err := db.SaveForwardingRule(rule); err != nil {
+			http.Error(w, "Failed to save forwarding rule", http.StatusServiceUnavailable)
+			return
+		}
 
 		http.Redirect(w, r, "/forwarding", http.StatusSeeOther)
 	}
@@ -51,14 +73,22 @@ func EditForwardingForm(db *storage.DB) http.HandlerFunc {
 			return
 		}
 
-		rule, found := db.GetForwardingRule(source)
-		if !found {
+		rule, err := db.GetForwardingRule(source)
+		if errors.Is(err, storage.ErrNotFound) {
 			http.Error(w, "Rule not found", http.StatusNotFound)
 			return
 		}
+		if err != nil {
+			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
+			return
+		}
 
-		tmpl := template.Must(template.ParseFiles("web/templates/edit_form.html"))
-		if err := tmpl.Execute(w, rule); err != nil {
+		tmpl, err := template.ParseFiles("web/templates/edit_form.html")
+		if err != nil {
+			http.Error(w, "Template load failed", http.StatusInternalServerError)
+			return
+		}
+		if err := tmpl.Execute(w, EditForwardingData{Rule: rule, CSRFToken: CSRFToken(r)}); err != nil {
 			http.Error(w, "Template render failed", http.StatusInternalServerError)
 		}
 	}
@@ -72,9 +102,13 @@ func UpdateForwardingRule(db *storage.DB) http.HandlerFunc {
 		}
 
 		source := strings.TrimSpace(r.FormValue("source"))
-		existing, found := db.GetForwardingRule(source)
-		if !found {
+		existing, err := db.GetForwardingRule(source)
+		if errors.Is(err, storage.ErrNotFound) {
 			http.Error(w, "Rule not found", http.StatusNotFound)
+			return
+		}
+		if err != nil {
+			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
 			return
 		}
 
@@ -84,7 +118,10 @@ func UpdateForwardingRule(db *storage.DB) http.HandlerFunc {
 			return
 		}
 
-		db.SaveForwardingRule(rule)
+		if err := db.SaveForwardingRule(rule); err != nil {
+			http.Error(w, "Failed to update forwarding rule", http.StatusServiceUnavailable)
+			return
+		}
 
 		http.Redirect(w, r, "/forwarding", http.StatusSeeOther)
 	}
@@ -99,7 +136,10 @@ func DeleteForwardingRule(db *storage.DB) http.HandlerFunc {
 
 		source := r.FormValue("source")
 		if source != "" {
-			db.DeleteForwardingRule(source)
+			if err := db.DeleteForwardingRule(source); err != nil {
+				http.Error(w, "Failed to delete forwarding rule", http.StatusServiceUnavailable)
+				return
+			}
 		}
 
 		http.Redirect(w, r, "/forwarding", http.StatusSeeOther)
@@ -111,6 +151,12 @@ func parseForwardingRuleForm(r *http.Request, existing *model.ForwardingRule) (m
 	target := strings.TrimSpace(r.FormValue("target"))
 	if source == "" || target == "" {
 		return model.ForwardingRule{}, errors.New("source and target are required")
+	}
+	if !validSource(source) {
+		return model.ForwardingRule{}, errors.New("source must be 1-64 letters, numbers, dots, underscores, or dashes")
+	}
+	if err := validateTargetURL(target); err != nil {
+		return model.ForwardingRule{}, err
 	}
 
 	rule := model.ForwardingRule{
@@ -179,6 +225,20 @@ func parseForwardingRuleForm(r *http.Request, existing *model.ForwardingRule) (m
 	rule.RetryBackoffSeconds = retryBackoffSeconds
 
 	return rule, nil
+}
+
+func validateTargetURL(target string) error {
+	if len(target) > 2048 {
+		return errors.New("target URL is too long")
+	}
+	parsed, err := url.ParseRequestURI(target)
+	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		return errors.New("target must be an absolute http or https URL")
+	}
+	if parsed.User != nil {
+		return errors.New("target URL must not contain credentials")
+	}
+	return nil
 }
 
 func parseTolerance(raw string, fallback int) (int, error) {

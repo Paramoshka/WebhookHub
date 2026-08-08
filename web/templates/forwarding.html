@@ -9,6 +9,7 @@
 
 <section class="panel">
 <form method="POST" action="/forwarding/save" class="rule-form">
+  <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 
   <div class="section">
     <div class="section-title">Routing</div>
@@ -89,7 +90,7 @@
   </tr>
   </thead>
   <tbody>
-  {{range .}}
+  {{range .Rules}}
   <tr>
     <td><span class="source-badge">{{.Source}}</span></td>
     <td class="wrap-text">{{.Target}}</td>
@@ -107,6 +108,7 @@
         >Edit</button>
 
         <form method="POST" action="/forwarding/delete" onsubmit="return confirm('Delete this rule?')">
+          <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
           <input type="hidden" name="source" value="{{.Source}}">
           <button class="btn-delete" type="submit">Delete</button>
         </form>
