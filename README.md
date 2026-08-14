@@ -181,6 +181,22 @@ curl "http://localhost:8080/partials/webhooks?source=stripe&status=failed&q=paym
 
 ## 📄 License
 
-This project is licensed under AGPL-3.0 for self-hosted and open-source use.
+Copyright (C) 2025-2026 Ivan Parfenov.
 
-Commercial SaaS deployment or integration into paid platforms requires a separate license. Contact [ivan.parfenov.42a@gmail.com] for details.
+WebhookHub is available under two licensing options:
+
+1. **Open-source license:** [GNU AGPL v3 only](LICENSE). You may use, modify,
+   distribute, and operate WebhookHub commercially under the AGPL. If you
+   modify it and users interact with your version over a network, section 13
+   requires you to prominently offer those users the corresponding source code
+   at no charge.
+2. **Commercial license:** alternative terms are available for users that want
+   to keep their modifications closed or cannot comply with the
+   AGPL. Contact
+   [ivan.parfenov.42a@gmail.com](mailto:ivan.parfenov.42a@gmail.com).
+
+Commercial use does not by itself require a commercial license. Third-party
+dependencies remain subject to their own licenses.
+
+Contributions are accepted under the [Contributor License Agreement](CLA.md)
+and the process described in [CONTRIBUTING.md](CONTRIBUTING.md).
