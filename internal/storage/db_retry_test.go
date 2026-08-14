@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"os"
 	"sort"
 	"testing"
@@ -94,6 +95,88 @@ func TestEnsureAdminUpdatesBootstrapPassword(t *testing.T) {
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte("rotated-password")); err != nil {
 		t.Fatal("configured admin password was not applied")
+	}
+}
+
+func TestWebhookMutationsRejectProcessingWebhook(t *testing.T) {
+	db := openTestDB(t)
+	truncateTestTables(t, db)
+
+	leaseUntil := time.Now().Add(time.Minute)
+	webhook := model.Webhook{
+		Source:             "processing",
+		Status:             "processing",
+		ReceivedAt:         time.Now(),
+		DeliveryLeaseUntil: &leaseUntil,
+	}
+	if err := db.Save(&webhook); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.CreateDeliveryAttempt(&model.DeliveryAttempt{
+		WebhookID: webhook.ID,
+		Source:    webhook.Source,
+		Status:    "pending",
+		StartedAt: time.Now(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := db.ResetWebhookDeliveryState(int(webhook.ID)); !errors.Is(err, ErrWebhookProcessing) {
+		t.Fatalf("expected reset conflict, got %v", err)
+	}
+	if err := db.DeleteWebhook(int(webhook.ID)); !errors.Is(err, ErrWebhookProcessing) {
+		t.Fatalf("expected delete conflict, got %v", err)
+	}
+
+	var stored model.Webhook
+	if err := db.conn.First(&stored, webhook.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if stored.Status != "processing" || stored.DeliveryLeaseUntil == nil {
+		t.Fatalf("processing webhook was changed: %+v", stored)
+	}
+	attempts, err := db.DeliveryAttemptsByWebhook(webhook.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(attempts) != 1 {
+		t.Fatalf("expected delivery attempt to remain, got %d", len(attempts))
+	}
+}
+
+func TestWebhookMutationsAllowInactiveWebhook(t *testing.T) {
+	db := openTestDB(t)
+	truncateTestTables(t, db)
+
+	nextRetryAt := time.Now().Add(time.Minute)
+	webhook := model.Webhook{
+		Source:       "retrying",
+		Status:       "retrying",
+		ReceivedAt:   time.Now(),
+		FailureCount: 2,
+		LastError:    "temporary failure",
+		NextRetryAt:  &nextRetryAt,
+	}
+	if err := db.Save(&webhook); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := db.ResetWebhookDeliveryState(int(webhook.ID)); err != nil {
+		t.Fatal(err)
+	}
+	var reset model.Webhook
+	if err := db.conn.First(&reset, webhook.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if reset.Status != "pending" || reset.FailureCount != 0 || reset.NextRetryAt != nil {
+		t.Fatalf("unexpected reset state: %+v", reset)
+	}
+
+	if err := db.DeleteWebhook(int(webhook.ID)); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.DeleteWebhook(int(webhook.ID)); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("expected deleted webhook to be missing, got %v", err)
 	}
 }
 

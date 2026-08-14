@@ -137,11 +137,13 @@ SHUTDOWN_TIMEOUT=10s
 ```
 
 Delivery is at-least-once. A database lease lets another worker recover a webhook left in `processing` after a crash. A duplicate remains possible if the target accepted a request but WebhookHub stopped before persisting the result.
+Replay and delete requests for a webhook currently in `processing` are rejected with HTTP `409 Conflict` so an active delivery cannot be changed underneath a worker.
 
 Health endpoints:
 
 - `GET /healthz` reports that the process is running.
 - `GET /readyz` reports readiness only when PostgreSQL responds.
+- The container healthcheck runs `webhookhub healthcheck`, which checks `/readyz` without requiring shell utilities in the image.
 
 ### Retention cleanup
 

@@ -18,6 +18,11 @@ import (
 
 var sourcePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
 
+type webhookMutationStore interface {
+	ResetWebhookDeliveryState(int) error
+	DeleteWebhook(int) error
+}
+
 func ReceiveWebhook(db *storage.DB, maxBodyBytes int64) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		source := strings.TrimPrefix(r.URL.Path, "/hook/")
@@ -95,21 +100,16 @@ func ListWebhooks(db *storage.DB) http.HandlerFunc {
 	}
 }
 
-func ReplayWebhook(db *storage.DB) http.HandlerFunc {
+func ReplayWebhook(db webhookMutationStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := r.URL.Query().Get("id")
-		hook, err := db.FindByID(id)
-		if errors.Is(err, storage.ErrNotFound) {
-			http.Error(w, "Not found", http.StatusNotFound)
-			return
-		}
+		id, err := parseWebhookID(r)
 		if err != nil {
-			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
+			http.Error(w, "Invalid ID", http.StatusBadRequest)
 			return
 		}
 
-		if err := db.ResetWebhookDeliveryState(int(hook.ID)); err != nil {
-			http.Error(w, "Failed to requeue webhook", http.StatusServiceUnavailable)
+		if err := db.ResetWebhookDeliveryState(id); err != nil {
+			writeWebhookMutationError(w, err, "Failed to requeue webhook")
 			return
 		}
 
@@ -123,17 +123,16 @@ func ReplayWebhook(db *storage.DB) http.HandlerFunc {
 	}
 }
 
-func DeleteWebhook(db *storage.DB) http.HandlerFunc {
+func DeleteWebhook(db webhookMutationStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		idStr := r.URL.Query().Get("id")
-		id, err := strconv.Atoi(idStr)
+		id, err := parseWebhookID(r)
 		if err != nil {
 			http.Error(w, "Invalid ID", http.StatusBadRequest)
 			return
 		}
 
 		if err := db.DeleteWebhook(id); err != nil {
-			http.Error(w, "Failed to delete webhook", http.StatusServiceUnavailable)
+			writeWebhookMutationError(w, err, "Failed to delete webhook")
 			return
 		}
 		if r.Header.Get("HX-Request") == "true" {
@@ -142,6 +141,25 @@ func DeleteWebhook(db *storage.DB) http.HandlerFunc {
 		}
 
 		http.Redirect(w, r, redirectTarget(r, "/dashboard"), http.StatusSeeOther)
+	}
+}
+
+func parseWebhookID(r *http.Request) (int, error) {
+	id, err := strconv.Atoi(strings.TrimSpace(r.URL.Query().Get("id")))
+	if err != nil || id <= 0 {
+		return 0, errors.New("invalid webhook ID")
+	}
+	return id, nil
+}
+
+func writeWebhookMutationError(w http.ResponseWriter, err error, fallback string) {
+	switch {
+	case errors.Is(err, storage.ErrNotFound):
+		http.Error(w, "Not found", http.StatusNotFound)
+	case errors.Is(err, storage.ErrWebhookProcessing):
+		http.Error(w, "Webhook delivery is in progress", http.StatusConflict)
+	default:
+		http.Error(w, fallback, http.StatusServiceUnavailable)
 	}
 }
 

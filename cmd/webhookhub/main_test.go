@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -43,6 +45,64 @@ func TestRoutesEnforceWebhookMethod(t *testing.T) {
 	if response.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("expected status %d, got %d", http.StatusMethodNotAllowed, response.Code)
 	}
+}
+
+func TestCheckReadiness(t *testing.T) {
+	tests := []struct {
+		name   string
+		status int
+		wantOK bool
+	}{
+		{name: "ready", status: http.StatusOK, wantOK: true},
+		{name: "not ready", status: http.StatusServiceUnavailable},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := &http.Client{Transport: mainRoundTripFunc(func(*http.Request) (*http.Response, error) {
+				return &http.Response{
+					StatusCode: test.status,
+					Body:       io.NopCloser(strings.NewReader("")),
+				}, nil
+			})}
+
+			err := checkReadiness(client, "http://127.0.0.1:8080/readyz")
+			if test.wantOK && err != nil {
+				t.Fatalf("expected readiness success, got %v", err)
+			}
+			if !test.wantOK && err == nil {
+				t.Fatal("expected readiness failure")
+			}
+		})
+	}
+}
+
+func TestCheckReadinessRejectsUnavailableEndpoint(t *testing.T) {
+	client := &http.Client{Transport: mainRoundTripFunc(func(*http.Request) (*http.Response, error) {
+		return nil, errors.New("connection refused")
+	})}
+
+	if err := checkReadiness(client, "http://127.0.0.1:8080/readyz"); err == nil {
+		t.Fatal("expected unavailable endpoint to fail")
+	}
+}
+
+func TestRunHealthcheckRejectsInvalidPort(t *testing.T) {
+	for _, port := range []string{"invalid", "0", "65536"} {
+		t.Run(port, func(t *testing.T) {
+			t.Setenv("PORT", port)
+
+			if err := runHealthcheck(); err == nil {
+				t.Fatalf("expected PORT=%q to fail", port)
+			}
+		})
+	}
+}
+
+type mainRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f mainRoundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return f(request)
 }
 
 func setValidConfigEnvironment(t *testing.T) {

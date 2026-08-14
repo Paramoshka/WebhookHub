@@ -8,10 +8,29 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"webhookhub/internal/storage"
 )
 
 type testPinger struct {
 	err error
+}
+
+type testWebhookMutationStore struct {
+	resetErr  error
+	deleteErr error
+	resetID   int
+	deleteID  int
+}
+
+func (s *testWebhookMutationStore) ResetWebhookDeliveryState(id int) error {
+	s.resetID = id
+	return s.resetErr
+}
+
+func (s *testWebhookMutationStore) DeleteWebhook(id int) error {
+	s.deleteID = id
+	return s.deleteErr
 }
 
 func (p testPinger) Ping(context.Context) error {
@@ -142,6 +161,72 @@ func TestReadyReflectsDatabaseState(t *testing.T) {
 			Ready(testPinger{err: test.err})(response, httptest.NewRequest(http.MethodGet, "/readyz", nil))
 			if response.Code != test.want {
 				t.Fatalf("expected status %d, got %d", test.want, response.Code)
+			}
+		})
+	}
+}
+
+func TestReplayWebhookReturnsMutationStatus(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		err  error
+		want int
+	}{
+		{name: "invalid ID", path: "/api/webhooks/replay?id=invalid", want: http.StatusBadRequest},
+		{name: "not found", path: "/api/webhooks/replay?id=42", err: storage.ErrNotFound, want: http.StatusNotFound},
+		{name: "processing", path: "/api/webhooks/replay?id=42", err: storage.ErrWebhookProcessing, want: http.StatusConflict},
+		{name: "database unavailable", path: "/api/webhooks/replay?id=42", err: errors.New("down"), want: http.StatusServiceUnavailable},
+		{name: "requeued", path: "/api/webhooks/replay?id=42", want: http.StatusOK},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			store := &testWebhookMutationStore{resetErr: test.err}
+			request := httptest.NewRequest(http.MethodPost, test.path, nil)
+			request.Header.Set("HX-Request", "true")
+			response := httptest.NewRecorder()
+
+			ReplayWebhook(store)(response, request)
+
+			if response.Code != test.want {
+				t.Fatalf("expected status %d, got %d", test.want, response.Code)
+			}
+			if test.path == "/api/webhooks/replay?id=42" && store.resetID != 42 {
+				t.Fatalf("expected webhook ID 42, got %d", store.resetID)
+			}
+		})
+	}
+}
+
+func TestDeleteWebhookReturnsMutationStatus(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		err  error
+		want int
+	}{
+		{name: "invalid ID", path: "/api/webhooks/delete?id=0", want: http.StatusBadRequest},
+		{name: "not found", path: "/api/webhooks/delete?id=42", err: storage.ErrNotFound, want: http.StatusNotFound},
+		{name: "processing", path: "/api/webhooks/delete?id=42", err: storage.ErrWebhookProcessing, want: http.StatusConflict},
+		{name: "database unavailable", path: "/api/webhooks/delete?id=42", err: errors.New("down"), want: http.StatusServiceUnavailable},
+		{name: "deleted", path: "/api/webhooks/delete?id=42", want: http.StatusOK},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			store := &testWebhookMutationStore{deleteErr: test.err}
+			request := httptest.NewRequest(http.MethodPost, test.path, nil)
+			request.Header.Set("HX-Request", "true")
+			response := httptest.NewRecorder()
+
+			DeleteWebhook(store)(response, request)
+
+			if response.Code != test.want {
+				t.Fatalf("expected status %d, got %d", test.want, response.Code)
+			}
+			if test.path == "/api/webhooks/delete?id=42" && store.deleteID != 42 {
+				t.Fatalf("expected webhook ID 42, got %d", store.deleteID)
 			}
 		})
 	}

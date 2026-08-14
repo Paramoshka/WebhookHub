@@ -14,6 +14,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"gorm.io/gorm/logger"
 )
 
@@ -21,7 +22,10 @@ type DB struct {
 	conn *gorm.DB
 }
 
-var ErrNotFound = errors.New("not found")
+var (
+	ErrNotFound          = errors.New("not found")
+	ErrWebhookProcessing = errors.New("webhook delivery is in progress")
+)
 
 type Config struct {
 	Host     string
@@ -147,16 +151,26 @@ func (d *DB) UpdateResponseFromForward(id int, resp []byte) error {
 }
 
 func (d *DB) ResetWebhookDeliveryState(id int) error {
-	return d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(map[string]any{
-		"status":               "pending",
-		"response":             []byte(nil),
-		"failure_count":        0,
-		"last_error":           "",
-		"next_retry_at":        nil,
-		"delivery_lease_until": nil,
-		"dead_lettered_at":     nil,
-		"dead_letter_reason":   "",
-	}).Error
+	return d.conn.Transaction(func(tx *gorm.DB) error {
+		webhook, err := lockWebhook(tx, id)
+		if err != nil {
+			return err
+		}
+		if webhook.Status == "processing" {
+			return ErrWebhookProcessing
+		}
+
+		return tx.Model(&webhook).Updates(map[string]any{
+			"status":               "pending",
+			"response":             []byte(nil),
+			"failure_count":        0,
+			"last_error":           "",
+			"next_retry_at":        nil,
+			"delivery_lease_until": nil,
+			"dead_lettered_at":     nil,
+			"dead_letter_reason":   "",
+		}).Error
+	})
 }
 
 func (d *DB) MarkWebhookDeliverySuccess(id int) error {
@@ -242,14 +256,31 @@ func (d *DB) ReleaseWebhookLease(id int) error {
 
 func (d *DB) DeleteWebhook(id int) error {
 	return d.conn.Transaction(func(tx *gorm.DB) error {
+		webhook, err := lockWebhook(tx, id)
+		if err != nil {
+			return err
+		}
+		if webhook.Status == "processing" {
+			return ErrWebhookProcessing
+		}
+
 		if err := tx.Where("webhook_id = ?", id).Delete(&model.DeliveryAttempt{}).Error; err != nil {
 			return err
 		}
-		if err := tx.Delete(&model.Webhook{}, id).Error; err != nil {
+		if err := tx.Delete(&webhook).Error; err != nil {
 			return err
 		}
 		return nil
 	})
+}
+
+func lockWebhook(tx *gorm.DB, id int) (model.Webhook, error) {
+	var webhook model.Webhook
+	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&webhook, id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return model.Webhook{}, ErrNotFound
+	}
+	return webhook, err
 }
 
 func (d *DB) DeleteForwardingRule(source string) error {

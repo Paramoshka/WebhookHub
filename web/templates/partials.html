@@ -18,6 +18,9 @@
       <td><span class="status-chip status-{{.Status}}">{{.Status}}</span></td>
       <td>
         <div class="table-actions">
+          {{if eq .Status "processing"}}
+          <span class="status-chip status-processing">In progress</span>
+          {{else}}
           <a
             hx-post="/api/webhooks/replay?id={{.ID}}"
             hx-headers='{"X-CSRF-Token":"{{$.CSRFToken}}"}'
@@ -26,9 +29,11 @@
             hx-trigger="click"
             class="action-link"
           >Retry</a>
+          {{end}}
 
           <a href="/partials/webhook/{{.ID}}" target="_blank" class="action-link">Inspect</a>
 
+          {{if ne .Status "processing"}}
           <a
             href="#"
             onclick="if(confirm('Delete this webhook?')) { this.setAttribute('hx-post', '/api/webhooks/delete?id={{.ID}}'); }"
@@ -38,6 +43,7 @@
             hx-swap="outerHTML"
             class="action-link action-link-danger"
           >Delete</a>
+          {{end}}
         </div>
       </td>
     </tr>

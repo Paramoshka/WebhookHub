@@ -41,9 +41,42 @@ type appConfig struct {
 }
 
 func main() {
+	if len(os.Args) > 1 {
+		if len(os.Args) == 2 && os.Args[1] == "healthcheck" {
+			if err := runHealthcheck(); err != nil {
+				log.Fatal(err)
+			}
+			return
+		}
+		log.Fatalf("usage: %s [healthcheck]", os.Args[0])
+	}
+
 	if err := run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func runHealthcheck() error {
+	port, err := positiveIntEnv("PORT", 8080)
+	if err != nil || port > 65535 {
+		return errors.New("PORT must be an integer from 1 to 65535")
+	}
+
+	client := &http.Client{Timeout: 2 * time.Second}
+	return checkReadiness(client, fmt.Sprintf("http://127.0.0.1:%d/readyz", port))
+}
+
+func checkReadiness(client *http.Client, endpoint string) error {
+	response, err := client.Get(endpoint)
+	if err != nil {
+		return fmt.Errorf("readiness request failed: %w", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("readiness request returned HTTP %d", response.StatusCode)
+	}
+	return nil
 }
 
 func run() error {

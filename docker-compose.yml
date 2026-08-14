@@ -31,7 +31,7 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/readyz"]
+      test: ["CMD", "/app/webhookhub", "healthcheck"]
       interval: 10s
       timeout: 3s
       retries: 5
