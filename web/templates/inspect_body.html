@@ -1,0 +1,27 @@
+{{define "inspect-body"}}
+<section class="panel inspect-body" data-body-view aria-labelledby="{{.ID}}-title">
+  <div class="section-header">
+    <div>
+      <h2 id="{{.ID}}-title">{{.Label}}</h2>
+      <span class="muted">{{.Size}} bytes{{if .Binary}} · Binary data{{end}}</span>
+    </div>
+    <div class="action-buttons">
+      {{if .JSON}}
+      <button type="button" class="btn-secondary" data-body-mode="formatted" aria-pressed="true">Formatted</button>
+      <button type="button" class="btn-secondary" data-body-mode="raw" aria-pressed="false">Raw</button>
+      {{end}}
+      {{if .Size}}
+      <button type="button" class="btn-secondary" data-copy-body>{{if .Binary}}Copy preview{{else}}Copy{{end}}</button>
+      {{end}}
+    </div>
+  </div>
+  {{if .Binary}}<p class="helper-text">Hex preview of the first {{if gt .Size 256}}256{{else}}{{.Size}}{{end}} bytes.</p>{{end}}
+  {{if .Size}}
+  {{if .JSON}}<pre class="code-block" data-body-text="formatted">{{.Formatted}}</pre>{{end}}
+  <pre class="code-block" data-body-text="raw" {{if .JSON}}hidden{{end}}>{{.Raw}}</pre>
+  {{else}}
+  <p class="muted">Empty body.</p>
+  {{end}}
+  <p data-copy-message role="status" aria-live="polite"></p>
+</section>
+{{end}}

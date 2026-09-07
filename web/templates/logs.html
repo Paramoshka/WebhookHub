@@ -1,7 +1,17 @@
+<div id="webhooks-table" hx-get="{{.CurrentURL}}" hx-trigger="every 5s" hx-swap="outerHTML" hx-sync="#filter-form:drop">
 {{template "partials.html" .}}
 
 <div class="pagination" style="margin-top: 18px; display: flex; align-items: center; gap: 12px;">
-  <a href="{{.PrevURL}}" hx-get="{{.PrevURL}}" hx-target="#webhooks-table" hx-swap="innerHTML" class="nav-link {{if .DisablePrev}}is-disabled{{end}}">Prev</a>
+  {{if .DisablePrev}}
+  <span class="nav-link is-disabled" aria-disabled="true">Prev</span>
+  {{else}}
+  <a href="{{.PrevURL}}" hx-get="{{.PrevURL}}" hx-target="#webhooks-table" hx-swap="outerHTML" hx-sync="#filter-form:replace" class="nav-link">Prev</a>
+  {{end}}
   <span>Page {{.CurrentPage}}</span>
-  <a href="{{.NextURL}}" hx-get="{{.NextURL}}" hx-target="#webhooks-table" hx-swap="innerHTML" class="nav-link {{if .DisableNext}}is-disabled{{end}}">Next</a>
+  {{if .DisableNext}}
+  <span class="nav-link is-disabled" aria-disabled="true">Next</span>
+  {{else}}
+  <a href="{{.NextURL}}" hx-get="{{.NextURL}}" hx-target="#webhooks-table" hx-swap="outerHTML" hx-sync="#filter-form:replace" class="nav-link">Next</a>
+  {{end}}
+</div>
 </div>

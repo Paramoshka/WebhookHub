@@ -47,6 +47,20 @@ func TestRoutesEnforceWebhookMethod(t *testing.T) {
 	}
 }
 
+func TestRoutesProtectInspect(t *testing.T) {
+	auth, err := handler.NewAuth(strings.Repeat("a", 32), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/webhooks/42", "/webhooks/42/payload", "/partials/webhook/42", "/partials/webhook/42/delivery"} {
+		response := httptest.NewRecorder()
+		routes(nil, auth, 1024).ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+		if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/login" {
+			t.Fatalf("%s must require login, got %d", path, response.Code)
+		}
+	}
+}
+
 func TestCheckReadiness(t *testing.T) {
 	tests := []struct {
 		name   string

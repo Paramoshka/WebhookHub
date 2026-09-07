@@ -3,14 +3,38 @@ package handler
 import (
 	"context"
 	"errors"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
 	"webhookhub/internal/storage"
 )
+
+func TestInspectWebhookRejectsInvalidID(t *testing.T) {
+	for _, id := range []string{"0", "-1", "abc", "1 OR 1=1", "999999999999999999999999999999", ""} {
+		t.Run(id, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/partials/webhook/"+url.PathEscape(id), nil)
+			request.SetPathValue("id", id)
+			response := httptest.NewRecorder()
+			InspectWebhook(nil)(response, request)
+			if response.Code != http.StatusBadRequest {
+				t.Fatalf("expected 400, got %d", response.Code)
+			}
+		})
+	}
+}
+
+func TestWebhookPageRejectsOverflow(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "/partials/webhooks?page="+strconv.Itoa(math.MaxInt), nil)
+	_, page := parseWebhookFilterAndPage(request)
+	if page != 1 {
+		t.Fatalf("expected fallback page 1, got %d", page)
+	}
+}
 
 type testPinger struct {
 	err error

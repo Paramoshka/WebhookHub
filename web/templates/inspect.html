@@ -1,83 +1,44 @@
-<div class="inspect-layout">
-    <div class="section-header">
-        <div>
-            <span class="eyebrow">Webhook detail</span>
-            <h2>Webhook #{{.Webhook.ID}}</h2>
-        </div>
-        <span class="status-chip status-{{.Webhook.Status}}">{{.Webhook.Status}}</span>
-    </div>
-
+{{define "title"}}Webhook #{{.Webhook.ID}} – WebhookHub{{end}}
+{{define "content"}}
+<article id="inspect-page">
+  <section class="page-header">
+    <a href="/dashboard" class="action-link">Back to logs</a>
+    <h1>Webhook #{{.Webhook.ID}}</h1>
     <div class="detail-grid">
-        <div class="detail-card">
-            <span class="detail-label">Source</span>
-            <strong>{{.Webhook.Source}}</strong>
-        </div>
-        <div class="detail-card">
-            <span class="detail-label">Received At</span>
-            <strong>{{.Webhook.ReceivedAt}}</strong>
-        </div>
-        <div class="detail-card">
-            <span class="detail-label">Failure Count</span>
-            <strong>{{.Webhook.FailureCount}}</strong>
-        </div>
-        <div class="detail-card">
-            <span class="detail-label">Next Retry At</span>
-            <strong>{{if .Webhook.NextRetryAt}}{{.Webhook.NextRetryAt}}{{else}}-{{end}}</strong>
-        </div>
-        <div class="detail-card">
-            <span class="detail-label">Dead-Lettered At</span>
-            <strong>{{if .Webhook.DeadLetteredAt}}{{.Webhook.DeadLetteredAt}}{{else}}-{{end}}</strong>
-        </div>
+      <div class="detail-card">
+        <span class="detail-label">Source</span>
+        <strong class="wrap-text">{{.Webhook.Source}}</strong>
+      </div>
+      <div class="detail-card">
+        <span class="detail-label">Received at</span>
+        <strong>{{.Webhook.ReceivedAt.UTC.Format "2006-01-02 15:04:05 UTC"}}</strong>
+      </div>
     </div>
+    <a href="/webhooks/{{.Webhook.ID}}/payload" class="action-link" download>Download payload</a>
+  </section>
 
-    {{if .Webhook.LastError}}
-    <p><strong>Last Error</strong></p>
-    <pre class="code-block">{{.Webhook.LastError}}</pre>
-    {{end}}
-
-    {{if .Webhook.DeadLetterReason}}
-    <p><strong>Dead-Letter Reason</strong></p>
-    <pre class="code-block">{{.Webhook.DeadLetterReason}}</pre>
-    {{end}}
-
-    <p><strong>Headers</strong></p>
+  <section class="panel" aria-labelledby="headers-title">
+    <h2 id="headers-title">Request headers</h2>
+    {{if .HeadersError}}
+    <p class="inspect-error">Stored headers could not be decoded.</p>
     <pre class="code-block">{{.Webhook.Headers}}</pre>
-
-    <p><strong>Payload</strong></p>
-    <pre class="code-block">{{printf "%s" .Webhook.Payload}}</pre>
-
-    <p><strong>Response from forward</strong></p>
-    <pre class="code-block">{{printf "%s" .Webhook.Response}}</pre>
-
-    <h3>Delivery Attempts</h3>
-    {{if .Attempts}}
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Target</th>
-                <th>Status</th>
-                <th>HTTP</th>
-                <th>Duration</th>
-                <th>Started</th>
-                <th>Error</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{range .Attempts}}
-            <tr>
-                <td class="table-id">#{{.ID}}</td>
-                <td class="wrap-text">{{if .Target}}{{.Target}}{{else}}-{{end}}</td>
-                <td><span class="status-chip status-{{.Status}}">{{.Status}}</span></td>
-                <td>{{if .HTTPStatus}}{{.HTTPStatus}}{{else}}-{{end}}</td>
-                <td>{{.DurationMS}} ms</td>
-                <td>{{.StartedAt}}</td>
-                <td>{{if .ErrorMessage}}{{.ErrorMessage}}{{else}}-{{end}}</td>
-            </tr>
-            {{end}}
-        </tbody>
-    </table>
+    {{else if .Headers}}
+    <dl class="inspect-headers">
+      {{range $name, $values := .Headers}}
+      <dt>{{$name}}</dt>
+      <dd>{{range $values}}<div>{{.}}</div>{{end}}</dd>
+      {{end}}
+    </dl>
     {{else}}
-    <p>No delivery attempts yet.</p>
+    <p class="muted">No request headers.</p>
     {{end}}
-</div>
+  </section>
+
+  {{template "inspect-body" .Payload}}
+
+  <p id="inspect-action-message" role="status" aria-live="polite"></p>
+  <p id="inspect-refresh-message" role="status" aria-live="polite"></p>
+  {{template "inspect-delivery" .}}
+</article>
+<script src="/static/inspect.js" defer></script>
+{{end}}

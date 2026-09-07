@@ -9,6 +9,7 @@ import (
 	"webhookhub/internal/model"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func StartRetentionWorker(ctx context.Context, db *DB, retentionDays int, interval time.Duration, batchSize int) *sync.WaitGroup {
@@ -56,20 +57,18 @@ func (d *DB) CleanupExpiredWebhooks(before time.Time, batchSize int) (int64, err
 
 	for {
 		var ids []uint
-		err := d.conn.Model(&model.Webhook{}).
-			Where("received_at < ? AND status NOT IN ?", before, []string{"pending", "processing", "retrying"}).
-			Order("id asc").
-			Limit(batchSize).
-			Pluck("id", &ids).
-			Error
-		if err != nil {
-			return totalDeleted, err
-		}
-		if len(ids) == 0 {
-			return totalDeleted, nil
-		}
-
-		err = d.conn.Transaction(func(tx *gorm.DB) error {
+		err := d.conn.Transaction(func(tx *gorm.DB) error {
+			if err := tx.Model(&model.Webhook{}).
+				Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
+				Where("received_at < ? AND status NOT IN ?", before, []string{"pending", "processing", "retrying"}).
+				Order("id asc").
+				Limit(batchSize).
+				Pluck("id", &ids).Error; err != nil {
+				return err
+			}
+			if len(ids) == 0 {
+				return nil
+			}
 			if err := tx.Where("webhook_id IN ?", ids).Delete(&model.DeliveryAttempt{}).Error; err != nil {
 				return err
 			}

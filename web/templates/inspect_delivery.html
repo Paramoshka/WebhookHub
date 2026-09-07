@@ -1,0 +1,49 @@
+{{define "inspect-delivery"}}
+<section id="inspect-delivery" hx-get="/partials/webhook/{{.Webhook.ID}}/delivery" hx-trigger="every 5s, refresh" hx-target="this" hx-swap="outerHTML" hx-sync="this:drop">
+  <div class="panel">
+    <div class="section-header">
+      <div>
+        <h2>Delivery</h2>
+        <p class="helper-text">Delivery details refresh every five seconds.</p>
+      </div>
+      <span class="status-chip status-{{.Webhook.Status}}">{{.Webhook.Status}}</span>
+    </div>
+    <form id="inspect-replay" method="POST" action="/api/webhooks/replay?id={{.Webhook.ID}}&amp;redirect_to=/webhooks/{{.Webhook.ID}}"
+          hx-post="/api/webhooks/replay?id={{.Webhook.ID}}" hx-swap="none" hx-sync="#inspect-delivery:replace">
+      <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+      <button type="submit" class="btn-primary" {{if eq .Webhook.Status "processing"}}disabled{{end}}>Replay</button>
+      {{if eq .Webhook.Status "processing"}}<span class="helper-text">Delivery is in progress.</span>{{end}}
+    </form>
+    <div class="detail-grid">
+      <div class="detail-card"><span class="detail-label">Failures</span><strong>{{.Webhook.FailureCount}}</strong></div>
+      <div class="detail-card"><span class="detail-label">Next retry</span><strong>{{if .Webhook.NextRetryAt}}{{.Webhook.NextRetryAt.UTC.Format "2006-01-02 15:04:05 UTC"}}{{else}}—{{end}}</strong></div>
+      {{if .Webhook.DeadLetteredAt}}<div class="detail-card"><span class="detail-label">Dead-lettered at</span><strong>{{.Webhook.DeadLetteredAt.UTC.Format "2006-01-02 15:04:05 UTC"}}</strong></div>{{end}}
+    </div>
+    {{if .Webhook.LastError}}<h3>Last error</h3><pre class="code-block">{{.Webhook.LastError}}</pre>{{end}}
+    {{if .Webhook.DeadLetterReason}}<h3>Dead-letter reason</h3><pre class="code-block">{{.Webhook.DeadLetterReason}}</pre>{{end}}
+
+    <h3>Delivery attempts</h3>
+    {{if .Attempts}}
+    <div class="inspect-attempts">
+      <table class="data-table">
+        <thead><tr><th>ID</th><th>Target</th><th>Status</th><th>HTTP</th><th>Duration</th><th>Started (UTC)</th><th>Error</th></tr></thead>
+        <tbody>
+          {{range .Attempts}}
+          <tr>
+            <td class="table-id">#{{.ID}}</td>
+            <td class="wrap-text">{{if .Target}}{{.Target}}{{else}}—{{end}}</td>
+            <td><span class="status-chip status-{{.Status}}">{{.Status}}</span></td>
+            <td>{{if .HTTPStatus}}{{.HTTPStatus}}{{else}}—{{end}}</td>
+            <td>{{.DurationMS}} ms</td>
+            <td>{{.StartedAt.UTC.Format "2006-01-02 15:04:05"}}</td>
+            <td class="wrap-text">{{if .ErrorMessage}}{{.ErrorMessage}}{{else}}—{{end}}</td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+    {{else}}<p class="muted">No delivery attempts yet.</p>{{end}}
+  </div>
+  {{template "inspect-body" .Response}}
+</section>
+{{end}}

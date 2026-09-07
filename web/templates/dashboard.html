@@ -20,7 +20,7 @@
   </div>
 
   <div class="panel">
-    <form id="filter-form" hx-get="/partials/webhooks" hx-target="#webhooks-table" hx-swap="innerHTML" class="rule-form">
+    <form id="filter-form" hx-get="/partials/webhooks" hx-target="#webhooks-table" hx-swap="outerHTML" hx-sync="this:replace" class="rule-form">
       <div class="section">
         <div class="section-title">Filters</div>
 
@@ -76,7 +76,12 @@
               <button
                 type="button"
                 class="btn-secondary"
-                onclick='const form = this.closest("form"); if (form) { form.reset(); htmx.trigger(form, "submit"); }'>
+                onclick='
+                  const form = this.closest("form");
+                  for (const field of form.querySelectorAll("input, select")) {
+                    field.value = field.name === "sort" ? "id_desc" : "";
+                  }
+                  htmx.trigger(form, "submit");'>
                 Reset
               </button>
             </div>
@@ -86,7 +91,7 @@
     </form>
   </div>
 
-  <div id="webhooks-table" hx-get="/partials/webhooks" hx-include="#filter-form" hx-trigger="load, every 5s" hx-swap="innerHTML">
+  <div id="webhooks-table" hx-get="{{.CurrentURL}}" hx-trigger="load, every 5s" hx-swap="outerHTML" hx-sync="#filter-form:drop">
     Loading logs...
   </div>
 </section>

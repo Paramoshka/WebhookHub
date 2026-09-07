@@ -17,6 +17,18 @@ type WebhookFilter struct {
 	Sort   string
 }
 
+func initPayloadSearch(db *gorm.DB) error {
+	// Binary payloads must not make an otherwise valid text search fail.
+	return db.Exec(`CREATE OR REPLACE FUNCTION webhookhub_payload_text(payload bytea)
+		RETURNS text LANGUAGE plpgsql IMMUTABLE STRICT AS $$
+		BEGIN
+			RETURN convert_from(payload, 'UTF8');
+		EXCEPTION WHEN character_not_in_repertoire OR untranslatable_character THEN
+			RETURN NULL;
+		END;
+		$$`).Error
+}
+
 func (d *DB) Filtered(filter WebhookFilter, limit, offset int) ([]model.Webhook, error) {
 	var list []model.Webhook
 
@@ -48,7 +60,7 @@ func (d *DB) applyWebhookFilter(query *gorm.DB, filter WebhookFilter) *gorm.DB {
 	if filter.Query != "" {
 		pattern := "%" + strings.TrimSpace(filter.Query) + "%"
 		query = query.Where(
-			"source ILIKE ? OR CAST(payload AS TEXT) ILIKE ? OR headers ILIKE ? OR last_error ILIKE ? OR dead_letter_reason ILIKE ?",
+			"source ILIKE ? OR webhookhub_payload_text(payload) ILIKE ? OR headers ILIKE ? OR last_error ILIKE ? OR dead_letter_reason ILIKE ?",
 			pattern, pattern, pattern, pattern, pattern,
 		)
 	}

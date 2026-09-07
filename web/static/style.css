@@ -583,12 +583,65 @@ button:focus-visible {
     margin-bottom: 8px;
 }
 
+.metrics-section .data-table td {
+    overflow-wrap: anywhere;
+}
+
 .metrics-empty {
     color: var(--muted);
 }
 
 .inspect-layout {
     padding: 12px;
+}
+
+.inspect-headers {
+    display: grid;
+    grid-template-columns: minmax(120px, 1fr) minmax(0, 3fr);
+    gap: 12px 20px;
+}
+
+.inspect-headers dt {
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.inspect-headers dd {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.inspect-attempts {
+    overflow-x: auto;
+}
+
+.inspect-attempts .data-table {
+    display: table;
+    min-width: 900px;
+}
+
+#inspect-delivery .panel {
+    animation: none;
+}
+
+.inspect-body .section-header {
+    flex-wrap: wrap;
+}
+
+.inspect-body [aria-pressed="true"] {
+    border-color: var(--accent);
+    background: rgba(92, 200, 255, 0.16);
+}
+
+#inspect-page button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+    transform: none;
+}
+
+.inspect-error {
+    color: #ffb0a8;
 }
 
 .detail-grid {
@@ -714,6 +767,15 @@ button:focus-visible {
 }
 
 @media (max-width: 720px) {
+    .inspect-headers {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+
+    .inspect-headers dd {
+        margin-bottom: 12px;
+    }
+
     body {
         padding: 14px;
     }

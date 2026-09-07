@@ -181,19 +181,28 @@ func (a *Auth) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("session")
 		if err != nil {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			redirectToLogin(w, r)
 			return
 		}
 
 		var session sessionData
 		if err := a.cookies.Decode("session", cookie.Value, &session); err != nil || session.User == "" || session.CSRFToken == "" {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			redirectToLogin(w, r)
 			return
 		}
 
 		ctx := context.WithValue(r.Context(), csrfContextKey, session.CSRFToken)
 		next(w, r.WithContext(ctx))
 	}
+}
+
+func redirectToLogin(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("HX-Request") == "true" {
+		w.Header().Set("HX-Redirect", "/login")
+		http.Error(w, "Session expired. Please sign in again.", http.StatusUnauthorized)
+		return
+	}
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
 func (a *Auth) RequireCSRF(next http.HandlerFunc) http.HandlerFunc {

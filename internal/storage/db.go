@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"net/url"
@@ -63,6 +64,9 @@ func Open(config Config) (*DB, error) {
 
 	if err := db.AutoMigrate(&model.Webhook{}, &model.DeliveryAttempt{}, &model.ForwardingRule{}, &model.User{}); err != nil {
 		return nil, err
+	}
+	if err := initPayloadSearch(db); err != nil {
+		return nil, fmt.Errorf("initialize payload search: %w", err)
 	}
 
 	return &DB{conn: db}, nil
@@ -137,9 +141,9 @@ func (d *DB) All() ([]model.Webhook, error) {
 	return list, err
 }
 
-func (d *DB) FindByID(id string) (model.Webhook, error) {
+func (d *DB) FindByID(id int) (model.Webhook, error) {
 	var h model.Webhook
-	err := d.conn.First(&h, id).Error
+	err := d.conn.Where("id = ?", id).First(&h).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return model.Webhook{}, ErrNotFound
 	}

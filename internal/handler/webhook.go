@@ -115,7 +115,7 @@ func ReplayWebhook(db webhookMutationStore) http.HandlerFunc {
 
 		if r.Header.Get("HX-Request") == "true" {
 			w.Header().Set("Content-Type", "text/html")
-			fmt.Fprintf(w, `<span style="color:green;">✅ Replayed</span>`)
+			fmt.Fprintf(w, `<span>Queued for delivery</span>`)
 			return
 		}
 

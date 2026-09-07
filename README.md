@@ -145,6 +145,20 @@ Health endpoints:
 - `GET /readyz` reports readiness only when PostgreSQL responds.
 - The container healthcheck runs `webhookhub healthcheck`, which checks `/readyz` without requiring shell utilities in the image.
 
+### Inspect a webhook
+
+Open **Inspect** from the logs, DLQ, or metrics to view `/webhooks/{id}`. The page
+shows request headers, JSON with Formatted/Raw views, copy controls, and delivery
+history. Status, attempts, and the latest saved response refresh every five
+seconds without replacing the request payload. Replay queues a new delivery;
+it does not mean the receiver has accepted the webhook yet.
+
+**Download payload** (`GET /webhooks/{id}/payload`, login required) saves the exact
+stored bytes. Binary bodies show a hex preview of up to 256 bytes. Clipboard
+access depends on browser permissions and a secure context (HTTPS or localhost);
+if copying is unavailable, the page provides a manual-copy message. Existing
+`/partials/webhook/{id}` links continue to open the full detail page.
+
 ### Retention cleanup
 
 Retention cleanup is optional and disabled by default. Configure via `.env`:
@@ -158,6 +172,9 @@ RETENTION_BATCH_SIZE=300
 ```
 
 When enabled, expired webhooks are removed in batches every interval by `received_at`.
+Active deliveries and queued retries are retained. Cleanup locks each batch before
+deleting it: a webhook successfully requeued first is retained; replay returns
+`404` if cleanup deleted the webhook first.
 
 ### Advanced logs filters (UI and API)
 
@@ -174,6 +191,16 @@ Query params:
 - `to`: upper bound for `received_at` (supports the same formats as `from`; date-only values are interpreted as end-of-day).
 - `sort`: one of `id_desc` (default), `received_desc`, `received_asc`, `id_asc`.
 - `page`: page number (default `1`), 10 items per page.
+
+Automatic refresh preserves the current page and applied filters. Apply and Reset
+start at page 1; Reset clears the filters.
+
+Payload search is case-insensitive text matching over UTF-8 content, including
+existing events. Binary payloads and bodies containing zero bytes are excluded
+from payload text matching, but remain searchable by their other fields and are
+stored and forwarded unchanged. Startup creates or replaces the PostgreSQL
+function `webhookhub_payload_text(bytea)`; the database user must have permission
+to create functions in the application's schema and own the function on upgrades.
 
 Example:
 

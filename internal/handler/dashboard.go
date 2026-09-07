@@ -19,13 +19,14 @@ func DashboardUI(db *storage.DB) http.HandlerFunc {
 		}
 
 		data := WebhookPageData{
-			Source:    strings.TrimSpace(r.URL.Query().Get("source")),
-			Status:    strings.TrimSpace(r.URL.Query().Get("status")),
-			Query:     strings.TrimSpace(r.URL.Query().Get("q")),
-			Sort:      strings.TrimSpace(r.URL.Query().Get("sort")),
-			From:      strings.TrimSpace(r.URL.Query().Get("from")),
-			To:        strings.TrimSpace(r.URL.Query().Get("to")),
-			CSRFToken: CSRFToken(r),
+			CurrentURL: buildWebhookListURL(r.URL.Query(), 1),
+			Source:     strings.TrimSpace(r.URL.Query().Get("source")),
+			Status:     strings.TrimSpace(r.URL.Query().Get("status")),
+			Query:      strings.TrimSpace(r.URL.Query().Get("q")),
+			Sort:       strings.TrimSpace(r.URL.Query().Get("sort")),
+			From:       strings.TrimSpace(r.URL.Query().Get("from")),
+			To:         strings.TrimSpace(r.URL.Query().Get("to")),
+			CSRFToken:  CSRFToken(r),
 		}
 		if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
 			http.Error(w, "Template render failed", http.StatusInternalServerError)

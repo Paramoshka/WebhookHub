@@ -31,12 +31,12 @@
           >Retry</a>
           {{end}}
 
-          <a href="/partials/webhook/{{.ID}}" target="_blank" class="action-link">Inspect</a>
+          <a href="/webhooks/{{.ID}}" target="_blank" class="action-link">Inspect</a>
 
           {{if ne .Status "processing"}}
           <a
             href="#"
-            onclick="if(confirm('Delete this webhook?')) { this.setAttribute('hx-post', '/api/webhooks/delete?id={{.ID}}'); }"
+            hx-confirm="Delete this webhook?"
             hx-post="/api/webhooks/delete?id={{.ID}}"
             hx-headers='{"X-CSRF-Token":"{{$.CSRFToken}}"}'
             hx-target="#webhook-{{.ID}}"

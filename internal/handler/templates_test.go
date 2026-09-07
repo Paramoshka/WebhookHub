@@ -23,6 +23,14 @@ func TestProtectedTemplatesRenderCSRFToken(t *testing.T) {
 		data     any
 	}{
 		{
+			name:     "inspect",
+			files:    []string{"base.html", "inspect.html", "inspect_body.html", "inspect_delivery.html"},
+			template: "base",
+			data: InspectWebhookData{Webhook: webhook, CSRFToken: "test-token",
+				Payload:  inspectBody("payload", "Payload", []byte("{}")),
+				Response: inspectBody("response", "Latest saved response", nil)},
+		},
+		{
 			name:     "index",
 			files:    []string{"base.html", "index.html"},
 			template: "base",
