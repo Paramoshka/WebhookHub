@@ -125,7 +125,7 @@ func parseWebhookDateTime(raw string, isTo bool) *time.Time {
 	}
 
 	for _, layout := range layouts {
-		if t, err := time.ParseInLocation(layout, raw, time.Local); err == nil {
+		if t, err := time.ParseInLocation(layout, raw, time.UTC); err == nil {
 			if layout == "2006-01-02" && isTo {
 				t = t.AddDate(0, 0, 1)
 			}
@@ -141,7 +141,7 @@ func formatDateTimeInput(v *time.Time) string {
 		return ""
 	}
 
-	return v.Format("2006-01-02T15:04")
+	return v.UTC().Format("2006-01-02T15:04")
 }
 
 func buildWebhookListURL(values url.Values, page int) string {

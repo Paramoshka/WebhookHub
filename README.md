@@ -199,10 +199,17 @@ Query params:
 - `source`: exact match on webhook source.
 - `status`: exact match on status (`pending`, `processing`, `retrying`, `success`, `failed`, `skipped`, `dead_lettered`).
 - `q`: full-text search across `source`, payload, headers, last error, and DLQ reason.
-- `from`: lower bound for `received_at` (supports `RFC3339`, `RFC3339Nano`, `2006-01-02T15:04`, `2006-01-02`).
-- `to`: upper bound for `received_at` (supports the same formats as `from`; date-only values are interpreted as end-of-day).
+- `from`: inclusive lower bound for `received_at` (supports `RFC3339`, `RFC3339Nano`, `2006-01-02T15:04`, `2006-01-02`).
+- `to`: exclusive upper bound for `received_at` (same formats; a date-only value includes that entire UTC day by using the start of the following day as the bound).
 - `sort`: one of `id_desc` (default), `received_desc`, `received_asc`, `id_asc`.
 - `page`: page number (default `1`), 10 items per page.
+
+The **From (UTC)** and **To (UTC)** controls display UTC. Values without an offset
+are interpreted as UTC, independent of the server timezone; RFC3339 values with
+an explicit offset keep their original instant and are displayed in UTC. This
+also applies to DLQ query parameters. On upgrade, existing filter URLs without
+an offset change from server-local time to UTC; add an explicit offset to retain
+their previous meaning if your server used another timezone.
 
 Automatic refresh preserves the current page and applied filters. Apply and Reset
 start at page 1; Reset clears the filters.

@@ -84,3 +84,27 @@ func TestFindByID(t *testing.T) {
 		}
 	}
 }
+
+func TestFilterDateBoundaries(t *testing.T) {
+	db := openTestDB(t)
+	truncateTestTables(t, db)
+	from := time.Date(2026, 9, 16, 0, 0, 0, 0, time.UTC)
+	to := from.AddDate(0, 0, 1)
+	for _, timestamp := range []time.Time{from.Add(-time.Microsecond), from, to.Add(-time.Microsecond), to} {
+		if err := db.Save(&model.Webhook{Source: "utc", Status: "success", ReceivedAt: timestamp}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	filter := WebhookFilter{Source: "utc", From: &from, To: &to, Sort: "received_asc"}
+	hooks, err := db.Filtered(filter, 10, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	count, err := db.CountFiltered(filter)
+	if err != nil || count != 2 || len(hooks) != 2 {
+		t.Fatalf("range [from,to): count=%d rows=%d err=%v", count, len(hooks), err)
+	}
+	if !hooks[0].ReceivedAt.Equal(from) || !hooks[1].ReceivedAt.Equal(to.Add(-time.Microsecond)) {
+		t.Fatal("incorrect date boundaries")
+	}
+}

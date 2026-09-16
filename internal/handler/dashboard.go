@@ -9,7 +9,7 @@ import (
 
 func DashboardUI(db *storage.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		_, page := parseWebhookFilterAndPage(r)
+		filter, page := parseWebhookFilterAndPage(r)
 		tmpl, err := template.ParseFiles(
 			"web/templates/base.html",
 			"web/templates/dashboard.html",
@@ -25,8 +25,8 @@ func DashboardUI(db *storage.DB) http.HandlerFunc {
 			Status:     strings.TrimSpace(r.URL.Query().Get("status")),
 			Query:      strings.TrimSpace(r.URL.Query().Get("q")),
 			Sort:       strings.TrimSpace(r.URL.Query().Get("sort")),
-			From:       strings.TrimSpace(r.URL.Query().Get("from")),
-			To:         strings.TrimSpace(r.URL.Query().Get("to")),
+			From:       formatDateTimeInput(filter.From),
+			To:         formatDateTimeInput(filter.To),
 			CSRFToken:  CSRFToken(r),
 		}
 		if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
