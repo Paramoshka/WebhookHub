@@ -150,10 +150,6 @@ func (d *DB) FindByID(id int) (model.Webhook, error) {
 	return h, err
 }
 
-func (d *DB) UpdateResponseFromForward(id int, resp []byte) error {
-	return d.conn.Model(&model.Webhook{}).Where("id = ?", id).Update("response", resp).Error
-}
-
 func (d *DB) ResetWebhookDeliveryState(id int) error {
 	return d.conn.Transaction(func(tx *gorm.DB) error {
 		webhook, err := lockWebhook(tx, id)

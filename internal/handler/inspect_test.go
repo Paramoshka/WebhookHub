@@ -21,6 +21,62 @@ type testInspectStore struct {
 	attemptsErr error
 }
 
+type testAttemptStore struct {
+	attempt              model.DeliveryAttempt
+	err                  error
+	webhookID, attemptID uint
+}
+
+func (s *testAttemptStore) DeliveryAttemptByID(webhookID, attemptID uint) (model.DeliveryAttempt, error) {
+	s.webhookID, s.attemptID = webhookID, attemptID
+	return s.attempt, s.err
+}
+
+func TestInspectDeliveryAttempt(t *testing.T) {
+	t.Chdir(filepath.Join(projectTemplateDir(t), "..", ".."))
+	for _, test := range []struct {
+		name     string
+		id       string
+		err      error
+		captured bool
+		want     int
+	}{
+		{"response", "7", nil, true, 200},
+		{"legacy", "7", nil, false, 200},
+		{"invalid", "0", nil, false, 400},
+		{"not found", "7", storage.ErrNotFound, false, 404},
+		{"unavailable", "7", errors.New("down"), false, 503},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			store := &testAttemptStore{err: test.err, attempt: model.DeliveryAttempt{ID: 7, WebhookID: 42, ResponseCaptured: test.captured, ResponseTruncated: true,
+				ResponseBody: []byte("<script>bad()</script>"), ResponseHeaders: `{"X-Test":["<img src=x>","second"]}`}}
+			r := httptest.NewRequest("GET", "/webhooks/42/attempts/7", nil)
+			r.SetPathValue("id", "42")
+			r.SetPathValue("attemptID", test.id)
+			w := httptest.NewRecorder()
+			InspectDeliveryAttempt(store)(w, r)
+			if w.Code != test.want {
+				t.Fatalf("status: %d body: %s", w.Code, w.Body.String())
+			}
+			if test.want == 200 {
+				if store.webhookID != 42 || store.attemptID != 7 {
+					t.Fatal("lookup must be scoped to webhook")
+				}
+				body := w.Body.String()
+				if strings.Contains(body, "<script>bad") || strings.Contains(body, "<img src=x>") {
+					t.Fatal("unsafe response rendering")
+				}
+				if test.captured && (!strings.Contains(body, "Response truncated") || !strings.Contains(body, "second")) {
+					t.Fatal("missing response details")
+				}
+				if !test.captured && !strings.Contains(body, "No response was saved") {
+					t.Fatal("missing legacy message")
+				}
+			}
+		})
+	}
+}
+
 func (s testInspectStore) FindByID(int) (model.Webhook, error) {
 	return s.webhook, s.findErr
 }

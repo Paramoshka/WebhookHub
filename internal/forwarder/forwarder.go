@@ -3,6 +3,7 @@ package forwarder
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -58,10 +59,7 @@ func Forward(ctx context.Context, db *storage.DB, h *model.Webhook) error {
 		return fmt.Errorf("create delivery attempt: %w", err)
 	}
 
-	httpStatus, responseBody, errorMessage, success := performDeliveryAttempt(ctx, rule, h)
-	if err := db.UpdateResponseFromForward(int(h.ID), responseBody); err != nil {
-		return fmt.Errorf("store forwarding response: %w", err)
-	}
+	response, errorMessage, success := performDeliveryAttempt(ctx, rule, h)
 
 	attemptStatus := "failed"
 	if success {
@@ -71,7 +69,7 @@ func Forward(ctx context.Context, db *storage.DB, h *model.Webhook) error {
 		attemptStatus = "cancelled"
 	}
 
-	if err := db.FinishDeliveryAttempt(attemptID, attemptStatus, httpStatus, errorMessage, time.Since(startedAt).Milliseconds()); err != nil {
+	if err := db.FinishDeliveryAttempt(attemptID, attemptStatus, response, errorMessage, time.Since(startedAt).Milliseconds()); err != nil {
 		return fmt.Errorf("finish delivery attempt: %w", err)
 	}
 
@@ -160,11 +158,12 @@ func runWorker(ctx context.Context, db *storage.DB, config WorkerConfig, workerI
 	}
 }
 
-func performDeliveryAttempt(parent context.Context, rule model.ForwardingRule, h *model.Webhook) (int, []byte, string, bool) {
+func performDeliveryAttempt(parent context.Context, rule model.ForwardingRule, h *model.Webhook) (model.DeliveryResponse, string, bool) {
 	return performDeliveryAttemptWithClient(parent, deliveryClient, rule, h)
 }
 
-func performDeliveryAttemptWithClient(parent context.Context, client *http.Client, rule model.ForwardingRule, h *model.Webhook) (int, []byte, string, bool) {
+func performDeliveryAttemptWithClient(parent context.Context, client *http.Client, rule model.ForwardingRule, h *model.Webhook) (model.DeliveryResponse, string, bool) {
+	var response model.DeliveryResponse
 	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 
@@ -172,7 +171,7 @@ func performDeliveryAttemptWithClient(parent context.Context, client *http.Clien
 	if err != nil {
 		errMsg := fmt.Sprintf("failed to create forwarding request: %v", err)
 		log.Printf("❌ Failed to create forwarding request for %s: %v\n", rule.Target, err)
-		return 0, nil, errMsg, false
+		return response, errMsg, false
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -183,25 +182,33 @@ func performDeliveryAttemptWithClient(parent context.Context, client *http.Clien
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Printf("❌ Forwarding to %s failed: %v\n", rule.Target, err)
-		return 0, nil, err.Error(), false
+		return response, err.Error(), false
 	}
 	defer resp.Body.Close()
 
-	limited := io.LimitReader(resp.Body, maxBody)
-	body, err := io.ReadAll(limited)
+	response.HTTPStatus = resp.StatusCode
+	response.Captured = true
+	headers, err := json.Marshal(resp.Header)
+	if err != nil {
+		return response, fmt.Sprintf("failed to serialize response headers: %v", err), false
+	}
+	response.Headers = string(headers)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBody+1))
+	response.Truncated = int64(len(body)) > maxBody
+	response.Body = body[:min(int64(len(body)), maxBody)]
 	if err != nil {
 		errMsg := fmt.Sprintf("failed to read response body: %v", err)
 		log.Printf("❌ Forwarding error reading body: %v\n", err)
-		return resp.StatusCode, body, errMsg, false
+		return response, errMsg, false
 	}
 
 	if resp.StatusCode >= 400 {
 		errMsg := fmt.Sprintf("target responded with status %d", resp.StatusCode)
 		log.Printf("❌ Forwarding failed with status %d: %s\n", resp.StatusCode, rule.Target)
-		return resp.StatusCode, body, errMsg, false
+		return response, errMsg, false
 	}
 
-	return resp.StatusCode, body, "", true
+	return response, "", true
 }
 
 func recordSkippedAttempt(db *storage.DB, h *model.Webhook, target string) error {
@@ -217,7 +224,7 @@ func recordSkippedAttempt(db *storage.DB, h *model.Webhook, target string) error
 		return fmt.Errorf("create skipped delivery attempt: %w", err)
 	}
 
-	if err := db.FinishDeliveryAttempt(attemptID, "skipped", 0, "no forwarding target configured", time.Since(startedAt).Milliseconds()); err != nil {
+	if err := db.FinishDeliveryAttempt(attemptID, "skipped", model.DeliveryResponse{}, "no forwarding target configured", time.Since(startedAt).Milliseconds()); err != nil {
 		return fmt.Errorf("finish skipped delivery attempt: %w", err)
 	}
 	if err := db.MarkWebhookDeliverySkipped(int(h.ID)); err != nil {

@@ -16,6 +16,7 @@
     </div>
   </div>
   {{if .Binary}}<p class="helper-text">Hex preview of the first {{if gt .Size 256}}256{{else}}{{.Size}}{{end}} bytes.</p>{{end}}
+  {{if .Truncated}}<p class="inspect-error">Response truncated: only the first 1 MiB was saved.</p>{{end}}
   {{if .Size}}
   {{if .JSON}}<pre class="code-block" data-body-text="formatted">{{.Formatted}}</pre>{{end}}
   <pre class="code-block" data-body-text="raw" {{if .JSON}}hidden{{end}}>{{.Raw}}</pre>

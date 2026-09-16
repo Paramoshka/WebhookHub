@@ -1,7 +1,10 @@
 package forwarder
 
 import (
+	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -10,6 +13,38 @@ import (
 
 	"webhookhub/internal/model"
 )
+
+func TestDeliveryResponseCapture(t *testing.T) {
+	for _, size := range []int{0, int(maxBody) - 1, int(maxBody), int(maxBody) + 1} {
+		t.Run(fmt.Sprint(size), func(t *testing.T) {
+			body := bytes.Repeat([]byte{0xff}, size)
+			client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+				return &http.Response{StatusCode: 500, Header: http.Header{"X-Request-Id": {"first", "second"}}, Body: io.NopCloser(bytes.NewReader(body))}, nil
+			})}
+			response, message, success := performDeliveryAttemptWithClient(context.Background(), client, model.ForwardingRule{Target: "https://example.com"}, &model.Webhook{})
+			if success || message == "" || !response.Captured || response.HTTPStatus != 500 || response.Truncated != (size > int(maxBody)) {
+				t.Fatalf("unexpected response metadata: status=%d captured=%v truncated=%v error=%q", response.HTTPStatus, response.Captured, response.Truncated, message)
+			}
+			if !bytes.Equal(response.Body, body[:min(size, int(maxBody))]) || !strings.Contains(response.Headers, `"X-Request-Id":["first","second"]`) {
+				t.Fatal("response body or repeated headers were changed")
+			}
+		})
+	}
+}
+
+func TestDeliveryResponseReadFailure(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(io.MultiReader(strings.NewReader("partial"), failingReader{}))}, nil
+	})}
+	response, message, success := performDeliveryAttemptWithClient(context.Background(), client, model.ForwardingRule{Target: "https://example.com"}, &model.Webhook{})
+	if success || !response.Captured || string(response.Body) != "partial" || !strings.Contains(message, "broken stream") {
+		t.Fatalf("partial response lost: %+v %q", response, message)
+	}
+}
+
+type failingReader struct{}
+
+func (failingReader) Read([]byte) (int, error) { return 0, errors.New("broken stream") }
 
 func TestRetryDelay(t *testing.T) {
 	tests := []struct {
@@ -48,18 +83,18 @@ func TestPerformDeliveryAttempt(t *testing.T) {
 	})}
 
 	payload := []byte(`{"event":"created"}`)
-	status, body, errorMessage, success := performDeliveryAttemptWithClient(
+	response, errorMessage, success := performDeliveryAttemptWithClient(
 		context.Background(),
 		client,
 		model.ForwardingRule{Target: "https://example.com/hook"},
 		&model.Webhook{Payload: payload},
 	)
 
-	if !success || status != http.StatusOK || errorMessage != "" {
-		t.Fatalf("unexpected result: success=%v status=%d error=%q", success, status, errorMessage)
+	if !success || response.HTTPStatus != http.StatusOK || errorMessage != "" {
+		t.Fatalf("unexpected result: success=%v status=%d error=%q", success, response.HTTPStatus, errorMessage)
 	}
-	if string(body) != "accepted" || receivedBody != string(payload) {
-		t.Fatalf("unexpected bodies: response=%q request=%q", body, receivedBody)
+	if string(response.Body) != "accepted" || receivedBody != string(payload) {
+		t.Fatalf("unexpected bodies: response=%q request=%q", response.Body, receivedBody)
 	}
 }
 
@@ -70,7 +105,7 @@ func TestPerformDeliveryAttemptHonorsCancellation(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, _, errorMessage, success := performDeliveryAttemptWithClient(
+	_, errorMessage, success := performDeliveryAttemptWithClient(
 		ctx,
 		client,
 		model.ForwardingRule{Target: "https://example.com/hook"},

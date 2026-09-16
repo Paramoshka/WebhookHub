@@ -1,9 +1,12 @@
 package storage
 
 import (
+	"errors"
 	"sort"
 	"time"
 	"webhookhub/internal/model"
+
+	"gorm.io/gorm"
 )
 
 type DeliveryMetrics struct {
@@ -43,25 +46,46 @@ func (d *DB) CreateDeliveryAttempt(attempt *model.DeliveryAttempt) (uint, error)
 	return attempt.ID, nil
 }
 
-func (d *DB) FinishDeliveryAttempt(id uint, status string, httpStatus int, errMsg string, durationMS int64) error {
-	if id == 0 {
-		return nil
-	}
-
+func (d *DB) FinishDeliveryAttempt(id uint, status string, response model.DeliveryResponse, errMsg string, durationMS int64) error {
 	completedAt := time.Now()
-	return d.conn.Model(&model.DeliveryAttempt{}).Where("id = ?", id).Updates(map[string]any{
-		"status":        status,
-		"http_status":   httpStatus,
-		"error_message": errMsg,
-		"duration_ms":   durationMS,
-		"completed_at":  &completedAt,
-	}).Error
+	return d.conn.Transaction(func(tx *gorm.DB) error {
+		var attempt model.DeliveryAttempt
+		if err := tx.Select("id", "webhook_id").First(&attempt, id).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&attempt).Updates(map[string]any{
+			"status":             status,
+			"http_status":        response.HTTPStatus,
+			"error_message":      errMsg,
+			"duration_ms":        durationMS,
+			"completed_at":       &completedAt,
+			"response_body":      response.Body,
+			"response_headers":   response.Headers,
+			"response_captured":  response.Captured,
+			"response_truncated": response.Truncated,
+		}).Error; err != nil {
+			return err
+		}
+		if status == "skipped" {
+			return nil
+		}
+		return tx.Model(&model.Webhook{}).Where("id = ?", attempt.WebhookID).Update("response", response.Body).Error
+	})
 }
 
 func (d *DB) DeliveryAttemptsByWebhook(webhookID uint) ([]model.DeliveryAttempt, error) {
 	var attempts []model.DeliveryAttempt
-	err := d.conn.Where("webhook_id = ?", webhookID).Order("id desc").Find(&attempts).Error
+	err := d.conn.Omit("response_body", "response_headers").Where("webhook_id = ?", webhookID).Order("id desc").Find(&attempts).Error
 	return attempts, err
+}
+
+func (d *DB) DeliveryAttemptByID(webhookID, attemptID uint) (model.DeliveryAttempt, error) {
+	var attempt model.DeliveryAttempt
+	err := d.conn.Where("webhook_id = ? AND id = ?", webhookID, attemptID).First(&attempt).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return attempt, ErrNotFound
+	}
+	return attempt, err
 }
 
 func (d *DB) DeliveryMetrics() (DeliveryMetrics, error) {
@@ -94,7 +118,7 @@ func (d *DB) DeliveryMetrics() (DeliveryMetrics, error) {
 		metrics.SuccessRate = float64(metrics.SuccessCount) * 100 / float64(completedAttempts)
 	}
 
-	if err := d.conn.Where("status = ?", "failed").Order("started_at desc").Limit(5).Find(&metrics.RecentFailures).Error; err != nil {
+	if err := d.conn.Omit("response_body", "response_headers").Where("status = ?", "failed").Order("started_at desc").Limit(5).Find(&metrics.RecentFailures).Error; err != nil {
 		return metrics, err
 	}
 	if err := d.conn.Where("status = ?", "dead_lettered").Order("dead_lettered_at desc").Limit(10).Find(&metrics.RecentDeadLetters).Error; err != nil {

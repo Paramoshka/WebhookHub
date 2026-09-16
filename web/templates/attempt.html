@@ -1,0 +1,28 @@
+{{define "title"}}Attempt #{{.Attempt.ID}} – WebhookHub{{end}}
+{{define "content"}}
+<article id="inspect-page">
+  <section class="page-header">
+    <a href="/webhooks/{{.Webhook.ID}}" class="action-link">Back to webhook #{{.Webhook.ID}}</a>
+    <h1>Delivery attempt #{{.Attempt.ID}}</h1>
+    <p class="wrap-text">{{.Attempt.Target}}</p>
+    <p><span class="status-chip status-{{.Attempt.Status}}">{{.Attempt.Status}}</span>
+      · HTTP {{if .Attempt.HTTPStatus}}{{.Attempt.HTTPStatus}}{{else}}—{{end}}
+      · {{.Attempt.DurationMS}} ms
+      · {{.Attempt.StartedAt.UTC.Format "2006-01-02 15:04:05 UTC"}}</p>
+    {{if .Attempt.ErrorMessage}}<pre class="code-block">{{.Attempt.ErrorMessage}}</pre>{{end}}
+  </section>
+  {{if .Attempt.ResponseCaptured}}
+  <section class="panel">
+    <h2>Response headers</h2>
+    {{if .HeadersError}}<p class="inspect-error">Stored response headers could not be decoded.</p>
+    {{else if .Headers}}
+    <dl class="inspect-headers">
+      {{range $name, $values := .Headers}}<dt>{{$name}}</dt><dd>{{range $values}}<div>{{.}}</div>{{end}}</dd>{{end}}
+    </dl>
+    {{else}}<p class="muted">No response headers.</p>{{end}}
+  </section>
+  {{template "inspect-body" .Response}}
+  {{else}}<p class="muted">No response was saved for this attempt.</p>{{end}}
+</article>
+<script src="/static/inspect.js" defer></script>
+{{end}}

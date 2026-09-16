@@ -153,6 +153,12 @@ history. Status, attempts, and the latest saved response refresh every five
 seconds without replacing the request payload. Replay queues a new delivery;
 it does not mean the receiver has accepted the webhook yet.
 
+Open an attempt ID to inspect its saved response headers and body. Each new
+attempt keeps its own response, including across Replay. Bodies are limited to
+1 MiB and the page indicates truncation; partial bodies are retained when reading
+fails. Older attempts explicitly show that no response was saved. Attempt
+responses are removed with their webhook by deletion or retention cleanup.
+
 **Download payload** (`GET /webhooks/{id}/payload`, login required) saves the exact
 stored bytes. Binary bodies show a hex preview of up to 256 bytes. Clipboard
 access depends on browser permissions and a secure context (HTTPS or localhost);

@@ -138,6 +138,7 @@ func createRetentionHook(t *testing.T, db *DB, status string, receivedAt time.Ti
 	}
 	if _, err := db.CreateDeliveryAttempt(&model.DeliveryAttempt{
 		WebhookID: hook.ID, Source: hook.Source, Status: "success", StartedAt: receivedAt,
+		ResponseBody: []byte("saved response"), ResponseHeaders: `{"Content-Type":["text/plain"]}`, ResponseCaptured: true,
 	}); err != nil {
 		t.Fatal(err)
 	}

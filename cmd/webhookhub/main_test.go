@@ -52,7 +52,7 @@ func TestRoutesProtectInspect(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, path := range []string{"/webhooks/42", "/webhooks/42/payload", "/partials/webhook/42", "/partials/webhook/42/delivery"} {
+	for _, path := range []string{"/webhooks/42", "/webhooks/42/payload", "/webhooks/42/attempts/7", "/partials/webhook/42", "/partials/webhook/42/delivery"} {
 		response := httptest.NewRecorder()
 		routes(nil, auth, 1024).ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
 		if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/login" {

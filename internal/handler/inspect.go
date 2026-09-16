@@ -29,6 +29,7 @@ type InspectBody struct {
 	Formatted string
 	JSON      bool
 	Binary    bool
+	Truncated bool
 }
 
 type InspectWebhookData struct {
@@ -39,6 +40,44 @@ type InspectWebhookData struct {
 	HeadersError bool
 	Payload      InspectBody
 	Response     InspectBody
+	Attempt      *model.DeliveryAttempt
+}
+
+type deliveryAttemptStore interface {
+	DeliveryAttemptByID(uint, uint) (model.DeliveryAttempt, error)
+}
+
+func InspectDeliveryAttempt(db deliveryAttemptStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		webhookID, err := strconv.Atoi(r.PathValue("id"))
+		attemptID, attemptErr := strconv.Atoi(r.PathValue("attemptID"))
+		if err != nil || attemptErr != nil || webhookID <= 0 || attemptID <= 0 {
+			http.Error(w, "Invalid ID", http.StatusBadRequest)
+			return
+		}
+		attempt, err := db.DeliveryAttemptByID(uint(webhookID), uint(attemptID))
+		if errors.Is(err, storage.ErrNotFound) {
+			http.NotFound(w, r)
+			return
+		}
+		if err != nil {
+			log.Printf("load delivery attempt %d: %v", attemptID, err)
+			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		data := InspectWebhookData{
+			Webhook: model.Webhook{ID: uint(webhookID)}, Attempt: &attempt, CSRFToken: CSRFToken(r),
+			Response: inspectBody("response", "Response body", attempt.ResponseBody),
+		}
+		data.Response.Truncated = attempt.ResponseTruncated
+		if attempt.ResponseHeaders != "" {
+			if err := json.Unmarshal([]byte(attempt.ResponseHeaders), &data.Headers); err != nil {
+				data.HeadersError = true
+				log.Printf("decode delivery attempt %d headers: %v", attemptID, err)
+			}
+		}
+		renderInspect(w, "base", data)
+	}
 }
 
 func InspectWebhook(db webhookInspectStore) http.HandlerFunc {
@@ -121,10 +160,19 @@ func inspectDeliveryData(db webhookInspectStore, webhook model.Webhook, csrfToke
 	if err != nil {
 		return InspectWebhookData{}, err
 	}
-	return InspectWebhookData{
+	data := InspectWebhookData{
 		Webhook: webhook, Attempts: attempts, CSRFToken: csrfToken,
 		Response: inspectBody("response", "Latest saved response", webhook.Response),
-	}, nil
+	}
+	if len(webhook.Response) > 0 {
+		for _, attempt := range attempts {
+			if attempt.CompletedAt != nil && attempt.Status != "skipped" {
+				data.Response.Truncated = attempt.ResponseTruncated
+				break
+			}
+		}
+	}
+	return data, nil
 }
 
 func inspectBody(id, label string, body []byte) InspectBody {
@@ -150,7 +198,11 @@ func inspectBody(id, label string, body []byte) InspectBody {
 }
 
 func renderInspect(w http.ResponseWriter, name string, data InspectWebhookData) {
-	tmpl, err := template.ParseFiles("web/templates/base.html", "web/templates/inspect.html",
+	page := "web/templates/inspect.html"
+	if data.Attempt != nil {
+		page = "web/templates/attempt.html"
+	}
+	tmpl, err := template.ParseFiles("web/templates/base.html", page,
 		"web/templates/inspect_delivery.html", "web/templates/inspect_body.html")
 	if err != nil {
 		log.Printf("load inspect templates: %v", err)

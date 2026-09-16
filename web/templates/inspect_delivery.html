@@ -30,7 +30,7 @@
         <tbody>
           {{range .Attempts}}
           <tr>
-            <td class="table-id">#{{.ID}}</td>
+            <td class="table-id"><a href="/webhooks/{{$.Webhook.ID}}/attempts/{{.ID}}">#{{.ID}}</a></td>
             <td class="wrap-text">{{if .Target}}{{.Target}}{{else}}—{{end}}</td>
             <td><span class="status-chip status-{{.Status}}">{{.Status}}</span></td>
             <td>{{if .HTTPStatus}}{{.HTTPStatus}}{{else}}—{{end}}</td>

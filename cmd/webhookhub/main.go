@@ -195,6 +195,7 @@ func routes(db *storage.DB, auth *handler.Auth, maxBodyBytes int64) http.Handler
 	mux.HandleFunc("GET /partials/webhooks", protected(handler.WebhookPartial(db)))
 	mux.HandleFunc("GET /partials/webhook/{id}", protected(handler.InspectWebhook(db)))
 	mux.HandleFunc("GET /webhooks/{id}", protected(handler.InspectWebhook(db)))
+	mux.HandleFunc("GET /webhooks/{id}/attempts/{attemptID}", protected(handler.InspectDeliveryAttempt(db)))
 	mux.HandleFunc("GET /webhooks/{id}/payload", protected(handler.DownloadWebhookPayload(db)))
 	mux.HandleFunc("GET /partials/webhook/{id}/delivery", protected(handler.InspectDeliveryPartial(db)))
 	mux.HandleFunc("GET /forwarding", protected(handler.ForwardingUI(db)))
