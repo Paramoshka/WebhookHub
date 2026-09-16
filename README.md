@@ -159,6 +159,12 @@ attempt keeps its own response, including across Replay. Bodies are limited to
 fails. Older attempts explicitly show that no response was saved. Attempt
 responses are removed with their webhook by deletion or retention cleanup.
 
+Forwarding and Replay preserve the received `Content-Type`, including charset
+and multipart boundary parameters. If the incoming request omitted this header,
+the forwarded request also omits it. Legacy records with no stored headers keep
+the previous `application/json` default. Other incoming headers are not copied;
+outgoing HMAC signatures are generated using the configured outgoing secret.
+
 **Download payload** (`GET /webhooks/{id}/payload`, login required) saves the exact
 stored bytes. Binary bodies show a hex preview of up to 256 bytes. Clipboard
 access depends on browser permissions and a secure context (HTTPS or localhost);

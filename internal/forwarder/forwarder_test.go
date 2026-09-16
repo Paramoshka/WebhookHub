@@ -3,6 +3,7 @@ package forwarder
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -11,8 +12,56 @@ import (
 	"testing"
 	"time"
 
+	"webhookhub/internal/hmacsig"
 	"webhookhub/internal/model"
 )
+
+func TestForwardPreservesContentTypeAndSignature(t *testing.T) {
+	for _, contentType := range []string{"application/json; charset=utf-8", "application/xml", "application/x-www-form-urlencoded", "multipart/form-data; boundary=original", "application/octet-stream", ""} {
+		t.Run(contentType, func(t *testing.T) {
+			payload := []byte{0, 1, 0xff, '\r', '\n'}
+			headers := http.Header{"Authorization": {"private"}, hmacsig.OutgoingHeader: {"old-signature"}}
+			if contentType != "" {
+				headers.Set("Content-Type", contentType)
+			}
+			encoded, err := json.Marshal(headers)
+			if err != nil {
+				t.Fatal(err)
+			}
+			client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+				body, err := io.ReadAll(r.Body)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !bytes.Equal(body, payload) || r.Header.Get("Content-Type") != contentType {
+					t.Fatal("payload or content type changed")
+				}
+				if r.Header.Get("Authorization") != "" {
+					t.Fatal("authorization forwarded unexpectedly")
+				}
+				if err := hmacsig.VerifyHeader("secret", r.Header.Get(hmacsig.OutgoingHeader), body, time.Now(), time.Minute); err != nil {
+					t.Fatalf("outgoing signature: %v", err)
+				}
+				return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader("ok"))}, nil
+			})}
+			_, message, success := performDeliveryAttemptWithClient(context.Background(), client, model.ForwardingRule{Target: "https://example.com", OutgoingSecret: "secret"}, &model.Webhook{Payload: payload, Headers: string(encoded)})
+			if !success {
+				t.Fatal(message)
+			}
+		})
+	}
+}
+
+func TestForwardRejectsCorruptStoredHeaders(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		t.Fatal("invalid stored headers must not be sent")
+		return nil, nil
+	})}
+	response, message, success := performDeliveryAttemptWithClient(context.Background(), client, model.ForwardingRule{Target: "https://example.com"}, &model.Webhook{Headers: `{"Content-Type":`})
+	if success || response.Captured || !strings.Contains(message, "decode stored request headers") {
+		t.Fatalf("unexpected result: %+v %q", response, message)
+	}
+}
 
 func TestDeliveryResponseCapture(t *testing.T) {
 	for _, size := range []int{0, int(maxBody) - 1, int(maxBody), int(maxBody) + 1} {

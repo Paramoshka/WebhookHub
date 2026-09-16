@@ -174,7 +174,18 @@ func performDeliveryAttemptWithClient(parent context.Context, client *http.Clien
 		return response, errMsg, false
 	}
 
-	req.Header.Set("Content-Type", "application/json")
+	if h.Headers == "" {
+		// Webhooks saved before header capture keep the original forwarding default.
+		req.Header.Set("Content-Type", "application/json")
+	} else {
+		var headers http.Header
+		if err := json.Unmarshal([]byte(h.Headers), &headers); err != nil {
+			return response, fmt.Sprintf("failed to decode stored request headers: %v", err), false
+		}
+		if values, ok := headers["Content-Type"]; ok {
+			req.Header["Content-Type"] = values
+		}
+	}
 	if rule.OutgoingSecret != "" {
 		req.Header.Set(hmacsig.OutgoingHeader, hmacsig.SignHeader(rule.OutgoingSecret, h.Payload, time.Now()))
 	}
