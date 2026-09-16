@@ -54,14 +54,14 @@
         <td>{{if .DeadLetterReason}}{{.DeadLetterReason}}{{else}}-{{end}}</td>
         <td>
           <div class="table-actions">
-            <a
+            <button type="button" data-webhook-action="replay" data-webhook-id="{{.ID}}"
               hx-post="/api/webhooks/replay?id={{.ID}}"
               hx-headers='{"X-CSRF-Token":"{{$.CSRFToken}}"}'
-              hx-swap="outerHTML"
-              hx-target="this"
+              hx-swap="none"
+              hx-sync="this:drop"
               hx-trigger="click"
               class="action-link"
-            >Requeue</a>
+            >Requeue</button>
             <a href="/webhooks/{{.ID}}" target="_blank" class="action-link">Inspect</a>
           </div>
         </td>

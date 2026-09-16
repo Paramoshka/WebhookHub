@@ -1,13 +1,19 @@
 {{define "title"}}Webhook Logs – WebhookHub{{end}}
 
 {{define "content"}}
+<div id="dashboard-page" hx-request='{"timeout":35000}'>
 <section class="page-header" hx-history="false">
   <span class="eyebrow">Observability</span>
   <h1>Webhook Logs</h1>
   <p class="lead">Live delivery metrics and the latest webhook traffic update automatically every few seconds.</p>
+  <button id="refresh-toggle" type="button" class="btn-secondary" aria-pressed="false">Pause updates</button>
+  <span id="refresh-state" role="status">Auto-refresh on · every 5 seconds</span>
+  <p id="dashboard-action-message" role="status" aria-live="polite"></p>
 </section>
 
-<div hx-get="/partials/metrics" hx-trigger="load, every 5s" hx-swap="innerHTML">
+<p class="helper-text">Metrics last updated: <time id="metrics-updated">Not yet loaded</time></p>
+<p id="metrics-refresh-message" role="status" aria-live="polite"></p>
+<div id="delivery-metrics" hx-get="/partials/metrics" hx-trigger="load, every 5s, refresh" hx-swap="innerHTML" hx-sync="this:drop">
   Loading delivery metrics...
 </div>
 
@@ -91,8 +97,12 @@
     </form>
   </div>
 
-  <div id="webhooks-table" hx-get="{{.CurrentURL}}" hx-trigger="load, every 5s" hx-swap="outerHTML" hx-sync="#filter-form:drop">
+  <p class="helper-text">Logs last updated: <time id="logs-updated">Not yet loaded</time></p>
+  <p id="logs-refresh-message" role="status" aria-live="polite"></p>
+  <div id="webhooks-table" hx-get="{{.CurrentURL}}" hx-trigger="load, every 5s, refresh" hx-swap="outerHTML" hx-sync="#filter-form:drop">
     Loading logs...
   </div>
 </section>
+</div>
+<script src="/static/dashboard.js" defer></script>
 {{end}}

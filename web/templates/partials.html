@@ -21,28 +21,27 @@
           {{if eq .Status "processing"}}
           <span class="status-chip status-processing">In progress</span>
           {{else}}
-          <a
+          <button type="button" data-webhook-action="replay" data-webhook-id="{{.ID}}"
             hx-post="/api/webhooks/replay?id={{.ID}}"
             hx-headers='{"X-CSRF-Token":"{{$.CSRFToken}}"}'
-            hx-swap="outerHTML"
-            hx-target="this"
+            hx-swap="none"
+            hx-sync="this:drop"
             hx-trigger="click"
             class="action-link"
-          >Retry</a>
+          >Retry</button>
           {{end}}
 
           <a href="/webhooks/{{.ID}}?return_to={{urlquery $.CurrentPageURL}}" target="_blank" class="action-link">Inspect</a>
 
           {{if ne .Status "processing"}}
-          <a
-            href="#"
+          <button type="button" data-webhook-action="delete" data-webhook-id="{{.ID}}"
             hx-confirm="Delete this webhook?"
             hx-post="/api/webhooks/delete?id={{.ID}}"
             hx-headers='{"X-CSRF-Token":"{{$.CSRFToken}}"}'
-            hx-target="#webhook-{{.ID}}"
-            hx-swap="outerHTML"
+            hx-swap="none"
+            hx-sync="this:drop"
             class="action-link action-link-danger"
-          >Delete</a>
+          >Delete</button>
           {{end}}
         </div>
       </td>

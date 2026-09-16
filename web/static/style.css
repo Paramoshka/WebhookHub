@@ -634,7 +634,8 @@ button:focus-visible {
     background: rgba(92, 200, 255, 0.16);
 }
 
-#inspect-page button:disabled {
+#inspect-page button:disabled,
+#dashboard-page button:disabled {
     cursor: not-allowed;
     opacity: 0.55;
     transform: none;

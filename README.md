@@ -212,6 +212,13 @@ opening a shared URL, and browser Back/Forward restore the selected filters and
 page. Inspect links from logs and DLQ retain a return link to that result set,
 including after Replay. Background refresh does not add browser history entries.
 
+**Pause updates** pauses background refresh for logs and metrics. Filters,
+pagination, and actions still work while paused; **Resume updates** fetches fresh
+data immediately. Each section shows its last successful refresh time and reports
+refresh failures while retaining the displayed data. Retry/Delete report progress
+and errors and prevent repeated clicks while an action is running. Action results
+refresh the view once even while background updates are paused.
+
 Payload search is case-insensitive text matching over UTF-8 content, including
 existing events. Binary payloads and bodies containing zero bytes are excluded
 from payload text matching, but remain searchable by their other fields and are
