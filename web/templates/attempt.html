@@ -2,7 +2,7 @@
 {{define "content"}}
 <article id="inspect-page">
   <section class="page-header">
-    <a href="/webhooks/{{.Webhook.ID}}" class="action-link">Back to webhook #{{.Webhook.ID}}</a>
+    <a href="{{.InspectURL}}" class="action-link">Back to webhook #{{.Webhook.ID}}</a>
     <h1>Delivery attempt #{{.Attempt.ID}}</h1>
     <p class="wrap-text">{{.Attempt.Target}}</p>
     <p><span class="status-chip status-{{.Attempt.Status}}">{{.Attempt.Status}}</span>

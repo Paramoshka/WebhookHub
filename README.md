@@ -207,6 +207,11 @@ Query params:
 Automatic refresh preserves the current page and applied filters. Apply and Reset
 start at page 1; Reset clears the filters.
 
+Applying filters and changing pages updates the `/dashboard` URL. Reloading,
+opening a shared URL, and browser Back/Forward restore the selected filters and
+page. Inspect links from logs and DLQ retain a return link to that result set,
+including after Replay. Background refresh does not add browser history entries.
+
 Payload search is case-insensitive text matching over UTF-8 content, including
 existing events. Binary payloads and bodies containing zero bytes are excluded
 from payload text matching, but remain searchable by their other fields and are

@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"unicode/utf8"
 
@@ -41,6 +42,8 @@ type InspectWebhookData struct {
 	Payload      InspectBody
 	Response     InspectBody
 	Attempt      *model.DeliveryAttempt
+	ReturnURL    string
+	InspectURL   string
 }
 
 type deliveryAttemptStore interface {
@@ -69,6 +72,7 @@ func InspectDeliveryAttempt(db deliveryAttemptStore) http.HandlerFunc {
 			Webhook: model.Webhook{ID: uint(webhookID)}, Attempt: &attempt, CSRFToken: CSRFToken(r),
 			Response: inspectBody("response", "Response body", attempt.ResponseBody),
 		}
+		setInspectNavigation(&data, r)
 		data.Response.Truncated = attempt.ResponseTruncated
 		if attempt.ResponseHeaders != "" {
 			if err := json.Unmarshal([]byte(attempt.ResponseHeaders), &data.Headers); err != nil {
@@ -93,6 +97,7 @@ func InspectWebhook(db webhookInspectStore) http.HandlerFunc {
 			return
 		}
 		data.Payload = inspectBody("payload", "Payload", webhook.Payload)
+		setInspectNavigation(&data, r)
 		if webhook.Headers != "" {
 			if err := json.Unmarshal([]byte(webhook.Headers), &data.Headers); err != nil {
 				data.HeadersError = true
@@ -115,8 +120,21 @@ func InspectDeliveryPartial(db webhookInspectStore) http.HandlerFunc {
 			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
 			return
 		}
+		setInspectNavigation(&data, r)
 		renderInspect(w, "inspect-delivery", data)
 	}
+}
+
+func setInspectNavigation(data *InspectWebhookData, r *http.Request) {
+	data.ReturnURL = "/dashboard"
+	target := r.URL.Query().Get("return_to")
+	if isLocalRedirect(target) {
+		parsed, err := url.Parse(target)
+		if err == nil && parsed.Fragment == "" && (parsed.Path == "/dashboard" || parsed.Path == "/dlq") {
+			data.ReturnURL = parsed.RequestURI()
+		}
+	}
+	data.InspectURL = fmt.Sprintf("/webhooks/%d?return_to=%s", data.Webhook.ID, url.QueryEscape(data.ReturnURL))
 }
 
 func DownloadWebhookPayload(db webhookInspectStore) http.HandlerFunc {

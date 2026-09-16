@@ -44,7 +44,7 @@
               <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
               <button class="btn-edit" type="submit">Requeue</button>
             </form>
-            <a href="/webhooks/{{.ID}}" target="_blank" class="action-link">Inspect</a>
+            <a href="/webhooks/{{.ID}}?return_to={{urlquery $.CurrentURL}}" target="_blank" class="action-link">Inspect</a>
             <form method="POST" action="/api/webhooks/delete?id={{.ID}}&redirect_to={{urlquery $.CurrentURL}}" onsubmit="return confirm('Delete this DLQ item?')">
               <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
               <button class="btn-delete" type="submit">Delete</button>

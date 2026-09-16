@@ -9,6 +9,7 @@ import (
 
 func DashboardUI(db *storage.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		_, page := parseWebhookFilterAndPage(r)
 		tmpl, err := template.ParseFiles(
 			"web/templates/base.html",
 			"web/templates/dashboard.html",
@@ -19,7 +20,7 @@ func DashboardUI(db *storage.DB) http.HandlerFunc {
 		}
 
 		data := WebhookPageData{
-			CurrentURL: buildWebhookListURL(r.URL.Query(), 1),
+			CurrentURL: buildWebhookListURL(r.URL.Query(), page),
 			Source:     strings.TrimSpace(r.URL.Query().Get("source")),
 			Status:     strings.TrimSpace(r.URL.Query().Get("status")),
 			Query:      strings.TrimSpace(r.URL.Query().Get("q")),

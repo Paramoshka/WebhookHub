@@ -2,7 +2,7 @@
 {{define "content"}}
 <article id="inspect-page">
   <section class="page-header">
-    <a href="/dashboard" class="action-link">Back to logs</a>
+    <a href="{{.ReturnURL}}" class="action-link">Back to logs</a>
     <h1>Webhook #{{.Webhook.ID}}</h1>
     <div class="detail-grid">
       <div class="detail-card">

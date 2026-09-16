@@ -5,13 +5,13 @@
   {{if .DisablePrev}}
   <span class="nav-link is-disabled" aria-disabled="true">Prev</span>
   {{else}}
-  <a href="{{.PrevURL}}" hx-get="{{.PrevURL}}" hx-target="#webhooks-table" hx-swap="outerHTML" hx-sync="#filter-form:replace" class="nav-link">Prev</a>
+  <a href="{{.PrevPageURL}}" hx-get="{{.PrevURL}}" hx-headers='{"X-Update-History":"true"}' hx-target="#webhooks-table" hx-swap="outerHTML" hx-sync="#filter-form:replace" class="nav-link">Prev</a>
   {{end}}
   <span>Page {{.CurrentPage}}</span>
   {{if .DisableNext}}
   <span class="nav-link is-disabled" aria-disabled="true">Next</span>
   {{else}}
-  <a href="{{.NextURL}}" hx-get="{{.NextURL}}" hx-target="#webhooks-table" hx-swap="outerHTML" hx-sync="#filter-form:replace" class="nav-link">Next</a>
+  <a href="{{.NextPageURL}}" hx-get="{{.NextURL}}" hx-headers='{"X-Update-History":"true"}' hx-target="#webhooks-table" hx-swap="outerHTML" hx-sync="#filter-form:replace" class="nav-link">Next</a>
   {{end}}
 </div>
 </div>

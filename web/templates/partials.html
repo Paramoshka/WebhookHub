@@ -31,7 +31,7 @@
           >Retry</a>
           {{end}}
 
-          <a href="/webhooks/{{.ID}}" target="_blank" class="action-link">Inspect</a>
+          <a href="/webhooks/{{.ID}}?return_to={{urlquery $.CurrentPageURL}}" target="_blank" class="action-link">Inspect</a>
 
           {{if ne .Status "processing"}}
           <a

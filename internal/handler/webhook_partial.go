@@ -15,23 +15,31 @@ import (
 const webhookPageSize = 10
 
 type WebhookPageData struct {
-	Webhooks    []model.Webhook
-	CurrentPage int
-	CurrentURL  string
-	PrevURL     string
-	NextURL     string
-	DisablePrev bool
-	DisableNext bool
-	Source      string
-	Status      string
-	Query       string
-	From        string
-	To          string
-	Sort        string
-	CSRFToken   string
+	Webhooks       []model.Webhook
+	CurrentPage    int
+	CurrentURL     string
+	CurrentPageURL string
+	PrevPageURL    string
+	NextPageURL    string
+	PrevURL        string
+	NextURL        string
+	DisablePrev    bool
+	DisableNext    bool
+	Source         string
+	Status         string
+	Query          string
+	From           string
+	To             string
+	Sort           string
+	CSRFToken      string
 }
 
-func WebhookPartial(db *storage.DB) http.HandlerFunc {
+type webhookListStore interface {
+	Filtered(storage.WebhookFilter, int, int) ([]model.Webhook, error)
+	CountFiltered(storage.WebhookFilter) (int, error)
+}
+
+func WebhookPartial(db webhookListStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		filter, page := parseWebhookFilterAndPage(r)
 		offset := (page - 1) * webhookPageSize
@@ -47,13 +55,7 @@ func WebhookPartial(db *storage.DB) http.HandlerFunc {
 			return
 		}
 
-		prevURL := ""
-		nextURL := ""
-		query := cloneURLValues(r.URL.Query())
-		query.Set("page", strconv.Itoa(page))
-		currentURL := buildWebhookListURL(query, page)
-		prevURL = buildWebhookListURL(query, page-1)
-		nextURL = buildWebhookListURL(query, page+1)
+		query := r.URL.Query()
 
 		tmpl, err := template.ParseFiles("web/templates/logs.html", "web/templates/partials.html")
 		if err != nil {
@@ -62,22 +64,28 @@ func WebhookPartial(db *storage.DB) http.HandlerFunc {
 		}
 
 		data := WebhookPageData{
-			Webhooks:    hooks,
-			CurrentPage: page,
-			CurrentURL:  currentURL,
-			PrevURL:     prevURL,
-			NextURL:     nextURL,
-			DisablePrev: page <= 1,
-			DisableNext: page*webhookPageSize >= total,
-			Source:      filter.Source,
-			Status:      filter.Status,
-			Query:       filter.Query,
-			From:        formatDateTimeInput(filter.From),
-			To:          formatDateTimeInput(filter.To),
-			Sort:        filter.Sort,
-			CSRFToken:   CSRFToken(r),
+			Webhooks:       hooks,
+			CurrentPage:    page,
+			CurrentURL:     buildWebhookListURL(query, page),
+			PrevURL:        buildWebhookListURL(query, page-1),
+			NextURL:        buildWebhookListURL(query, page+1),
+			CurrentPageURL: buildDashboardURL(query, page),
+			PrevPageURL:    buildDashboardURL(query, page-1),
+			NextPageURL:    buildDashboardURL(query, page+1),
+			DisablePrev:    page <= 1,
+			DisableNext:    page*webhookPageSize >= total,
+			Source:         filter.Source,
+			Status:         filter.Status,
+			Query:          filter.Query,
+			From:           formatDateTimeInput(filter.From),
+			To:             formatDateTimeInput(filter.To),
+			Sort:           filter.Sort,
+			CSRFToken:      CSRFToken(r),
 		}
 
+		if r.Header.Get("HX-Request") == "true" && r.Header.Get("X-Update-History") == "true" {
+			w.Header().Set("HX-Push-Url", data.CurrentPageURL)
+		}
 		if err := tmpl.Execute(w, data); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -137,24 +145,24 @@ func formatDateTimeInput(v *time.Time) string {
 }
 
 func buildWebhookListURL(values url.Values, page int) string {
+	return "/partials/webhooks?" + webhookListQuery(values, page)
+}
+
+func buildDashboardURL(values url.Values, page int) string {
+	return "/dashboard?" + webhookListQuery(values, page)
+}
+
+func webhookListQuery(values url.Values, page int) string {
 	if page < 1 {
 		page = 1
 	}
 
-	filtered := cloneURLValues(values)
-	if page > 0 {
-		filtered.Set("page", strconv.Itoa(page))
-	}
-
-	return "/partials/webhooks?" + filtered.Encode()
-}
-
-func cloneURLValues(values url.Values) url.Values {
-	out := url.Values{}
-	for key, vals := range values {
-		for _, val := range vals {
-			out.Add(key, val)
+	filtered := url.Values{}
+	for _, name := range []string{"source", "status", "q", "from", "to", "sort"} {
+		if value := strings.TrimSpace(values.Get(name)); value != "" {
+			filtered.Set(name, value)
 		}
 	}
-	return out
+	filtered.Set("page", strconv.Itoa(page))
+	return filtered.Encode()
 }

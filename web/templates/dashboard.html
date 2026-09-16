@@ -1,7 +1,7 @@
 {{define "title"}}Webhook Logs – WebhookHub{{end}}
 
 {{define "content"}}
-<section class="page-header">
+<section class="page-header" hx-history="false">
   <span class="eyebrow">Observability</span>
   <h1>Webhook Logs</h1>
   <p class="lead">Live delivery metrics and the latest webhook traffic update automatically every few seconds.</p>
@@ -20,7 +20,7 @@
   </div>
 
   <div class="panel">
-    <form id="filter-form" hx-get="/partials/webhooks" hx-target="#webhooks-table" hx-swap="outerHTML" hx-sync="this:replace" class="rule-form">
+    <form id="filter-form" method="GET" action="/dashboard" hx-get="/partials/webhooks" hx-headers='{"X-Update-History":"true"}' hx-target="#webhooks-table" hx-swap="outerHTML" hx-sync="this:replace" class="rule-form">
       <div class="section">
         <div class="section-title">Filters</div>
 
@@ -69,8 +69,8 @@
               <option value="id_asc" {{if eq .Sort "id_asc"}}selected{{end}}>ID ascending</option>
             </select>
           </label>
-          <label>
-            Quick actions
+          <div>
+            <span>Quick actions</span>
             <div class="action-buttons" style="margin-top: 1.1rem;">
               <button class="btn-primary" type="submit">Apply</button>
               <button
@@ -85,7 +85,7 @@
                 Reset
               </button>
             </div>
-          </label>
+          </div>
         </div>
       </div>
     </form>

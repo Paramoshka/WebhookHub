@@ -1,5 +1,5 @@
 {{define "inspect-delivery"}}
-<section id="inspect-delivery" hx-get="/partials/webhook/{{.Webhook.ID}}/delivery" hx-trigger="every 5s, refresh" hx-target="this" hx-swap="outerHTML" hx-sync="this:drop">
+<section id="inspect-delivery" hx-get="/partials/webhook/{{.Webhook.ID}}/delivery?return_to={{urlquery .ReturnURL}}" hx-trigger="every 5s, refresh" hx-target="this" hx-swap="outerHTML" hx-sync="this:drop">
   <div class="panel">
     <div class="section-header">
       <div>
@@ -8,7 +8,7 @@
       </div>
       <span class="status-chip status-{{.Webhook.Status}}">{{.Webhook.Status}}</span>
     </div>
-    <form id="inspect-replay" method="POST" action="/api/webhooks/replay?id={{.Webhook.ID}}&amp;redirect_to=/webhooks/{{.Webhook.ID}}"
+    <form id="inspect-replay" method="POST" action="/api/webhooks/replay?id={{.Webhook.ID}}&amp;redirect_to={{urlquery .InspectURL}}"
           hx-post="/api/webhooks/replay?id={{.Webhook.ID}}" hx-swap="none" hx-sync="#inspect-delivery:replace">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       <button type="submit" class="btn-primary" {{if eq .Webhook.Status "processing"}}disabled{{end}}>Replay</button>
@@ -30,7 +30,7 @@
         <tbody>
           {{range .Attempts}}
           <tr>
-            <td class="table-id"><a href="/webhooks/{{$.Webhook.ID}}/attempts/{{.ID}}">#{{.ID}}</a></td>
+            <td class="table-id"><a href="/webhooks/{{$.Webhook.ID}}/attempts/{{.ID}}?return_to={{urlquery $.ReturnURL}}">#{{.ID}}</a></td>
             <td class="wrap-text">{{if .Target}}{{.Target}}{{else}}—{{end}}</td>
             <td><span class="status-chip status-{{.Status}}">{{.Status}}</span></td>
             <td>{{if .HTTPStatus}}{{.HTTPStatus}}{{else}}—{{end}}</td>
