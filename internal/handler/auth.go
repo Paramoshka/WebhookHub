@@ -8,6 +8,7 @@ import (
 	"errors"
 	"html/template"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"webhookhub/internal/storage"
@@ -23,10 +24,16 @@ type authContextKey string
 
 const csrfContextKey authContextKey = "csrf_token"
 
+// dummyPasswordHash is compared against when the email is unknown so that
+// response timing does not reveal whether an account exists.
+var dummyPasswordHash = []byte("$2a$10$l6AgED.zKbzavi0YpUsLou4kEK/KTfH4Bm/CX5mwI/cuTLX9P5LbW")
+
 type Auth struct {
-	cookies      *securecookie.SecureCookie
-	loginCookies *securecookie.SecureCookie
-	secure       bool
+	cookies           *securecookie.SecureCookie
+	loginCookies      *securecookie.SecureCookie
+	secure            bool
+	trustProxyHeaders bool
+	loginLimiter      *loginLimiter
 }
 
 type sessionData struct {
@@ -38,7 +45,7 @@ type LoginPageData struct {
 	CSRFToken string
 }
 
-func NewAuth(sessionKey string, secure bool) (*Auth, error) {
+func NewAuth(sessionKey string, secure, trustProxyHeaders bool) (*Auth, error) {
 	if len(sessionKey) < 32 {
 		return nil, errors.New("SESSION_KEY must contain at least 32 characters")
 	}
@@ -48,7 +55,13 @@ func NewAuth(sessionKey string, secure bool) (*Auth, error) {
 	loginCookies := securecookie.New([]byte(sessionKey), nil)
 	loginCookies.MaxAge(loginCSRFMaxAgeSeconds)
 
-	return &Auth{cookies: cookies, loginCookies: loginCookies, secure: secure}, nil
+	return &Auth{
+		cookies:           cookies,
+		loginCookies:      loginCookies,
+		secure:            secure,
+		trustProxyHeaders: trustProxyHeaders,
+		loginLimiter:      newLoginLimiter(),
+	}, nil
 }
 
 func (a *Auth) Login(db *storage.DB) http.HandlerFunc {
@@ -85,6 +98,13 @@ func (a *Auth) Login(db *storage.DB) http.HandlerFunc {
 			return
 		}
 
+		clientKey := clientIP(r, a.trustProxyHeaders)
+		if !a.loginLimiter.allow(clientKey) {
+			w.Header().Set("Retry-After", strconv.Itoa(int(loginWindow.Seconds())))
+			http.Error(w, "Too many failed login attempts", http.StatusTooManyRequests)
+			return
+		}
+
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "Invalid form", http.StatusBadRequest)
 			return
@@ -97,19 +117,23 @@ func (a *Auth) Login(db *storage.DB) http.HandlerFunc {
 		email := strings.TrimSpace(r.FormValue("username"))
 		password := r.FormValue("password")
 		user, err := db.FindUserByEmail(email)
-		if errors.Is(err, storage.ErrNotFound) {
+		switch {
+		case errors.Is(err, storage.ErrNotFound):
+			_ = bcrypt.CompareHashAndPassword(dummyPasswordHash, []byte(password))
+			a.loginLimiter.fail(clientKey)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
-		}
-		if err != nil {
+		case err != nil:
 			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
 			return
 		}
 
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+			a.loginLimiter.fail(clientKey)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
+		a.loginLimiter.reset(clientKey)
 
 		csrfToken, err := randomToken()
 		if err != nil {

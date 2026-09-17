@@ -28,6 +28,7 @@ type appConfig struct {
 	AdminPassword      string
 	SessionKey         string
 	CookieSecure       bool
+	TrustProxyHeaders  bool
 	Port               int
 	MaxBodyBytes       int64
 	DeliveryWorkers    int
@@ -103,7 +104,7 @@ func run() error {
 		return fmt.Errorf("ensure admin user: %w", err)
 	}
 
-	auth, err := handler.NewAuth(config.SessionKey, config.CookieSecure)
+	auth, err := handler.NewAuth(config.SessionKey, config.CookieSecure, config.TrustProxyHeaders)
 	if err != nil {
 		return fmt.Errorf("initialize authentication: %w", err)
 	}
@@ -250,6 +251,9 @@ func loadConfig() (appConfig, error) {
 	}
 
 	if config.CookieSecure, err = boolEnv("COOKIE_SECURE", false); err != nil {
+		return config, err
+	}
+	if config.TrustProxyHeaders, err = boolEnv("TRUST_PROXY_HEADERS", false); err != nil {
 		return config, err
 	}
 	if config.Port, err = positiveIntEnv("PORT", 8080); err != nil || config.Port > 65535 {

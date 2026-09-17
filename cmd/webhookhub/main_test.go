@@ -33,7 +33,7 @@ func TestLoadConfigAcceptsValidEnvironment(t *testing.T) {
 }
 
 func TestRoutesEnforceWebhookMethod(t *testing.T) {
-	auth, err := handler.NewAuth(strings.Repeat("a", 32), false)
+	auth, err := handler.NewAuth(strings.Repeat("a", 32), false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestRoutesEnforceWebhookMethod(t *testing.T) {
 }
 
 func TestRoutesProtectInspect(t *testing.T) {
-	auth, err := handler.NewAuth(strings.Repeat("a", 32), false)
+	auth, err := handler.NewAuth(strings.Repeat("a", 32), false, false)
 	if err != nil {
 		t.Fatal(err)
 	}

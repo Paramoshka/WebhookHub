@@ -210,7 +210,7 @@ func TestInspectPageAndDeliveryRenderSafely(t *testing.T) {
 }
 
 func TestRequireAuthRedirectsHTMXToLogin(t *testing.T) {
-	auth, err := NewAuth(strings.Repeat("a", 32), false)
+	auth, err := NewAuth(strings.Repeat("a", 32), false, false)
 	if err != nil {
 		t.Fatal(err)
 	}

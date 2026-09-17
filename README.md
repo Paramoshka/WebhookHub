@@ -123,6 +123,7 @@ Required values:
 - `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
 
 Production deployments behind HTTPS should set `COOKIE_SECURE=true`. PostgreSQL TLS can be configured with `POSTGRES_SSLMODE` (default: `disable`).
+Failed logins are limited to 10 attempts per 15 minutes per client address. Enable `TRUST_PROXY_HEADERS=true` only behind a reverse proxy you control: it makes the limiter use the first `X-Forwarded-For` address, which clients can otherwise spoof.
 `ADMIN_EMAIL` and `ADMIN_PASSWORD` are authoritative bootstrap credentials: on startup WebhookHub creates the single admin or updates that account to match the configured values.
 
 Runtime limits and delivery workers:

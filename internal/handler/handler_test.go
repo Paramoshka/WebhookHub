@@ -111,7 +111,7 @@ func TestParseForwardingRuleFormValidatesSourceAndTarget(t *testing.T) {
 }
 
 func TestRequireCSRF(t *testing.T) {
-	auth, err := NewAuth(strings.Repeat("a", 32), false)
+	auth, err := NewAuth(strings.Repeat("a", 32), false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,13 +148,13 @@ func TestRequireCSRF(t *testing.T) {
 }
 
 func TestNewAuthRejectsShortSessionKey(t *testing.T) {
-	if _, err := NewAuth("too-short", false); err == nil {
+	if _, err := NewAuth("too-short", false, false); err == nil {
 		t.Fatal("expected short session key to be rejected")
 	}
 }
 
 func TestLoginRequiresCSRFToken(t *testing.T) {
-	auth, err := NewAuth(strings.Repeat("a", 32), false)
+	auth, err := NewAuth(strings.Repeat("a", 32), false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
