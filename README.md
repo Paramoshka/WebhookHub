@@ -268,3 +268,7 @@ dependencies remain subject to their own licenses.
 
 Contributions are accepted under the [Contributor License Agreement](CLA.md)
 and the process described in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### Vendored frontend dependency
+
+htmx is served locally and embedded in the application. See [version, provenance, license and update procedure](docs/vendor-htmx.md).
