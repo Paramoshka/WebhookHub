@@ -58,7 +58,7 @@ func (d *DB) applyWebhookFilter(query *gorm.DB, filter WebhookFilter) *gorm.DB {
 		query = query.Where("status = ?", strings.TrimSpace(filter.Status))
 	}
 	if filter.Query != "" {
-		pattern := "%" + strings.TrimSpace(filter.Query) + "%"
+		pattern := "%" + escapeLikePattern(strings.TrimSpace(filter.Query)) + "%"
 		query = query.Where(
 			"source ILIKE ? OR webhookhub_payload_text(payload) ILIKE ? OR headers ILIKE ? OR last_error ILIKE ? OR dead_letter_reason ILIKE ?",
 			pattern, pattern, pattern, pattern, pattern,
@@ -72,6 +72,11 @@ func (d *DB) applyWebhookFilter(query *gorm.DB, filter WebhookFilter) *gorm.DB {
 	}
 
 	return query
+}
+
+func escapeLikePattern(value string) string {
+	// PostgreSQL treats the backslash as the default LIKE/ILIKE escape character.
+	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(value)
 }
 
 func (d *DB) applyWebhookSort(query *gorm.DB, sort string) *gorm.DB {
