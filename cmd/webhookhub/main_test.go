@@ -61,6 +61,26 @@ func TestRoutesProtectInspect(t *testing.T) {
 	}
 }
 
+func TestRoutesSetSecurityHeaders(t *testing.T) {
+	auth, err := handler.NewAuth(strings.Repeat("a", 32), false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+
+	routes(nil, auth, 1024).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+
+	for header, want := range map[string]string{
+		"X-Content-Type-Options": "nosniff",
+		"X-Frame-Options":        "DENY",
+		"Referrer-Policy":        "same-origin",
+	} {
+		if got := response.Header().Get(header); got != want {
+			t.Fatalf("expected %s=%q, got %q", header, want, got)
+		}
+	}
+}
+
 func TestCheckReadiness(t *testing.T) {
 	tests := []struct {
 		name   string
