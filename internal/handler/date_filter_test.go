@@ -4,7 +4,6 @@ import (
 	"html"
 	"net/http/httptest"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -37,7 +36,6 @@ func TestFilterDatesUseUTC(t *testing.T) {
 }
 
 func TestDashboardDisplaysFilterDatesInUTC(t *testing.T) {
-	t.Chdir(filepath.Join(projectTemplateDir(t), "..", ".."))
 	values := url.Values{"from": {"2026-09-16T10:30:00+07:00"}, "to": {"2026-09-16"}}
 	r := httptest.NewRequest("GET", "/dashboard?"+values.Encode(), nil)
 	w := httptest.NewRecorder()

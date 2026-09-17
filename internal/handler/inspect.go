@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"log"
 	"net/http"
 	"net/url"
@@ -216,16 +215,9 @@ func inspectBody(id, label string, body []byte) InspectBody {
 }
 
 func renderInspect(w http.ResponseWriter, name string, data InspectWebhookData) {
-	page := "web/templates/inspect.html"
+	tmpl := inspectTemplates
 	if data.Attempt != nil {
-		page = "web/templates/attempt.html"
-	}
-	tmpl, err := template.ParseFiles("web/templates/base.html", page,
-		"web/templates/inspect_delivery.html", "web/templates/inspect_body.html")
-	if err != nil {
-		log.Printf("load inspect templates: %v", err)
-		http.Error(w, "Template load failed", http.StatusInternalServerError)
-		return
+		tmpl = attemptTemplates
 	}
 	var output bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&output, name, data); err != nil {

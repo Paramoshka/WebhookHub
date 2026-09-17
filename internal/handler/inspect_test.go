@@ -6,7 +6,6 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -33,7 +32,6 @@ func (s *testAttemptStore) DeliveryAttemptByID(webhookID, attemptID uint) (model
 }
 
 func TestInspectDeliveryAttempt(t *testing.T) {
-	t.Chdir(filepath.Join(projectTemplateDir(t), "..", ".."))
 	for _, test := range []struct {
 		name     string
 		id       string
@@ -175,7 +173,6 @@ func TestInspectEndpointsReportErrors(t *testing.T) {
 }
 
 func TestInspectPageAndDeliveryRenderSafely(t *testing.T) {
-	t.Chdir(filepath.Join(projectTemplateDir(t), "..", ".."))
 	store := testInspectStore{webhook: model.Webhook{
 		ID: 42, Source: "inspect", Status: "processing", ReceivedAt: time.Now(),
 		Headers:  `{"X-Repeat":["first","second"],"X-Html":["<img src=x onerror=alert(1)>"]}`,

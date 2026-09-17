@@ -81,6 +81,20 @@ func TestRoutesSetSecurityHeaders(t *testing.T) {
 	}
 }
 
+func TestRoutesServeEmbeddedStaticAsset(t *testing.T) {
+	auth, err := handler.NewAuth(strings.Repeat("a", 32), false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+
+	routes(nil, auth, 1024).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/static/htmx.min.js", nil))
+
+	if response.Code != http.StatusOK || response.Body.Len() == 0 {
+		t.Fatalf("expected embedded asset, got status %d with %d bytes", response.Code, response.Body.Len())
+	}
+}
+
 func TestCheckReadiness(t *testing.T) {
 	tests := []struct {
 		name   string

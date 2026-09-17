@@ -3,17 +3,15 @@ package handler
 import (
 	"bytes"
 	"html/template"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
 	"webhookhub/internal/model"
 	"webhookhub/internal/storage"
+	"webhookhub/web"
 )
 
 func TestProtectedTemplatesRenderCSRFToken(t *testing.T) {
-	templateDir := projectTemplateDir(t)
 	webhook := model.Webhook{ID: 1, Source: "stripe", Status: "pending"}
 	rule := model.ForwardingRule{Source: "stripe", Target: "https://example.com/hook"}
 	tests := []struct {
@@ -79,11 +77,7 @@ func TestProtectedTemplatesRenderCSRFToken(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			paths := make([]string, 0, len(test.files))
-			for _, file := range test.files {
-				paths = append(paths, filepath.Join(templateDir, file))
-			}
-			tmpl, err := template.ParseFiles(paths...)
+			tmpl, err := template.ParseFS(web.Templates, test.files...)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -97,13 +91,4 @@ func TestProtectedTemplatesRenderCSRFToken(t *testing.T) {
 			}
 		})
 	}
-}
-
-func projectTemplateDir(t *testing.T) string {
-	t.Helper()
-	_, currentFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("failed to locate test file")
-	}
-	return filepath.Join(filepath.Dir(currentFile), "..", "..", "web", "templates")
 }

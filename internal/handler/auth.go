@@ -6,7 +6,6 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"errors"
-	"html/template"
 	"net/http"
 	"strconv"
 	"strings"
@@ -87,12 +86,7 @@ func (a *Auth) Login(db *storage.DB) http.HandlerFunc {
 				SameSite: http.SameSiteStrictMode,
 			})
 
-			tmpl, err := template.ParseFiles("web/templates/login.html")
-			if err != nil {
-				http.Error(w, "Template load failed", http.StatusInternalServerError)
-				return
-			}
-			if err := tmpl.Execute(w, LoginPageData{CSRFToken: csrfToken}); err != nil {
+			if err := loginTemplates.Execute(w, LoginPageData{CSRFToken: csrfToken}); err != nil {
 				http.Error(w, "Template render failed", http.StatusInternalServerError)
 			}
 			return

@@ -18,6 +18,7 @@ import (
 	"webhookhub/internal/forwarder"
 	"webhookhub/internal/handler"
 	"webhookhub/internal/storage"
+	"webhookhub/web"
 
 	"github.com/joho/godotenv"
 )
@@ -172,7 +173,7 @@ func run() error {
 
 func routes(db *storage.DB, auth *handler.Auth, maxBodyBytes int64) http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
+	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(web.Static)))
 	mux.HandleFunc("GET /healthz", handler.Health())
 	mux.HandleFunc("GET /readyz", handler.Ready(db))
 	mux.HandleFunc("GET /login", auth.Login(db))

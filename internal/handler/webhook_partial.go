@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"html/template"
 	"math"
 	"net/http"
 	"net/url"
@@ -57,12 +56,6 @@ func WebhookPartial(db webhookListStore) http.HandlerFunc {
 
 		query := r.URL.Query()
 
-		tmpl, err := template.ParseFiles("web/templates/logs.html", "web/templates/partials.html")
-		if err != nil {
-			http.Error(w, "Template load failed", http.StatusInternalServerError)
-			return
-		}
-
 		data := WebhookPageData{
 			Webhooks:       hooks,
 			CurrentPage:    page,
@@ -86,7 +79,7 @@ func WebhookPartial(db webhookListStore) http.HandlerFunc {
 		if r.Header.Get("HX-Request") == "true" && r.Header.Get("X-Update-History") == "true" {
 			w.Header().Set("HX-Push-Url", data.CurrentPageURL)
 		}
-		if err := tmpl.Execute(w, data); err != nil {
+		if err := logsTemplates.Execute(w, data); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}

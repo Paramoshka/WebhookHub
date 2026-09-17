@@ -24,8 +24,6 @@ services:
     restart: unless-stopped
     ports:
       - "8080:8080"
-    volumes:
-      - ./web:/app/web:ro
     env_file:
       - .env
     depends_on:
