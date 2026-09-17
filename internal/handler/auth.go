@@ -92,13 +92,6 @@ func (a *Auth) Login(db *storage.DB) http.HandlerFunc {
 			return
 		}
 
-		clientKey := clientIP(r, a.trustProxyHeaders)
-		if !a.loginLimiter.allow(clientKey) {
-			w.Header().Set("Retry-After", strconv.Itoa(int(loginWindow.Seconds())))
-			http.Error(w, "Too many failed login attempts", http.StatusTooManyRequests)
-			return
-		}
-
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "Invalid form", http.StatusBadRequest)
 			return
@@ -108,13 +101,22 @@ func (a *Auth) Login(db *storage.DB) http.HandlerFunc {
 			return
 		}
 
+		reservation, retryAfter := a.loginLimiter.reserve(clientIP(r, a.trustProxyHeaders))
+		if reservation == nil {
+			w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
+			http.Error(w, "Too many failed login attempts", http.StatusTooManyRequests)
+			return
+		}
+		outcome := loginAborted
+		defer func() { reservation.finish(outcome) }()
+
 		email := strings.TrimSpace(r.FormValue("username"))
 		password := r.FormValue("password")
 		user, err := db.FindUserByEmail(email)
 		switch {
 		case errors.Is(err, storage.ErrNotFound):
 			_ = bcrypt.CompareHashAndPassword(dummyPasswordHash, []byte(password))
-			a.loginLimiter.fail(clientKey)
+			outcome = loginFailed
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		case err != nil:
@@ -123,11 +125,11 @@ func (a *Auth) Login(db *storage.DB) http.HandlerFunc {
 		}
 
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-			a.loginLimiter.fail(clientKey)
+			outcome = loginFailed
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		a.loginLimiter.reset(clientKey)
+		outcome = loginSucceeded
 
 		csrfToken, err := randomToken()
 		if err != nil {
