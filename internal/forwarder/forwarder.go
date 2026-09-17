@@ -16,9 +16,11 @@ import (
 	"webhookhub/internal/storage"
 )
 
-const timeout = 5 * time.Second
+const DefaultDeliveryTimeout = 5 * time.Second
 
-var deliveryClient = &http.Client{Timeout: timeout}
+// deliveryClient has no client-level timeout: every attempt gets its own
+// deadline from the configured delivery timeout.
+var deliveryClient = &http.Client{}
 
 const maxBody = int64(1 << 20)
 const DefaultMaxAttempts = 3
@@ -29,9 +31,10 @@ type WorkerConfig struct {
 	Count         int
 	PollInterval  time.Duration
 	LeaseDuration time.Duration
+	Timeout       time.Duration
 }
 
-func Forward(ctx context.Context, db *storage.DB, h *model.Webhook) error {
+func Forward(ctx context.Context, db *storage.DB, h *model.Webhook, timeout time.Duration) error {
 	rule, err := db.GetForwardingRule(h.Source)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
@@ -59,7 +62,7 @@ func Forward(ctx context.Context, db *storage.DB, h *model.Webhook) error {
 		return fmt.Errorf("create delivery attempt: %w", err)
 	}
 
-	response, errorMessage, success := performDeliveryAttempt(ctx, rule, h)
+	response, errorMessage, success := performDeliveryAttempt(ctx, rule, h, timeout)
 
 	attemptStatus := "failed"
 	if success {
@@ -116,6 +119,9 @@ func StartWorkerPool(ctx context.Context, db *storage.DB, config WorkerConfig) *
 	if config.LeaseDuration <= 0 {
 		config.LeaseDuration = 30 * time.Second
 	}
+	if config.Timeout <= 0 {
+		config.Timeout = DefaultDeliveryTimeout
+	}
 
 	wg := &sync.WaitGroup{}
 	for workerID := 1; workerID <= config.Count; workerID++ {
@@ -140,7 +146,7 @@ func runWorker(ctx context.Context, db *storage.DB, config WorkerConfig, workerI
 		if err != nil {
 			log.Printf("delivery worker %d failed to claim webhook: %v", workerID, err)
 		} else if len(hooks) > 0 {
-			if err := Forward(ctx, db, &hooks[0]); err != nil && !errors.Is(err, context.Canceled) {
+			if err := Forward(ctx, db, &hooks[0], config.Timeout); err != nil && !errors.Is(err, context.Canceled) {
 				log.Printf("delivery worker %d failed webhook %d: %v", workerID, hooks[0].ID, err)
 			}
 			continue
@@ -158,11 +164,11 @@ func runWorker(ctx context.Context, db *storage.DB, config WorkerConfig, workerI
 	}
 }
 
-func performDeliveryAttempt(parent context.Context, rule model.ForwardingRule, h *model.Webhook) (model.DeliveryResponse, string, bool) {
-	return performDeliveryAttemptWithClient(parent, deliveryClient, rule, h)
+func performDeliveryAttempt(parent context.Context, rule model.ForwardingRule, h *model.Webhook, timeout time.Duration) (model.DeliveryResponse, string, bool) {
+	return performDeliveryAttemptWithClient(parent, deliveryClient, rule, h, timeout)
 }
 
-func performDeliveryAttemptWithClient(parent context.Context, client *http.Client, rule model.ForwardingRule, h *model.Webhook) (model.DeliveryResponse, string, bool) {
+func performDeliveryAttemptWithClient(parent context.Context, client *http.Client, rule model.ForwardingRule, h *model.Webhook, timeout time.Duration) (model.DeliveryResponse, string, bool) {
 	var response model.DeliveryResponse
 	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()

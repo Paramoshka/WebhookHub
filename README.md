@@ -134,8 +134,11 @@ MAX_BODY_BYTES=1048576
 DELIVERY_WORKERS=4
 DELIVERY_POLL_INTERVAL=1s
 DELIVERY_LEASE_DURATION=30s
+DELIVERY_TIMEOUT=5s
 SHUTDOWN_TIMEOUT=10s
 ```
+
+`DELIVERY_TIMEOUT` is the deadline for a single delivery attempt and must be shorter than `DELIVERY_LEASE_DURATION`, otherwise another worker could claim the webhook while the attempt is still running.
 
 Delivery is at-least-once. A database lease lets another worker recover a webhook left in `processing` after a crash. A duplicate remains possible if the target accepted a request but WebhookHub stopped before persisting the result.
 Replay and delete requests for a webhook currently in `processing` are rejected with HTTP `409 Conflict` so an active delivery cannot be changed underneath a worker.

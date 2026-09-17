@@ -35,6 +35,7 @@ type appConfig struct {
 	DeliveryWorkers    int
 	DeliveryPoll       time.Duration
 	DeliveryLease      time.Duration
+	DeliveryTimeout    time.Duration
 	ShutdownTimeout    time.Duration
 	RetentionEnabled   bool
 	RetentionDays      int
@@ -115,6 +116,7 @@ func run() error {
 		Count:         config.DeliveryWorkers,
 		PollInterval:  config.DeliveryPoll,
 		LeaseDuration: config.DeliveryLease,
+		Timeout:       config.DeliveryTimeout,
 	})
 	retentionWorkers := &sync.WaitGroup{}
 	if config.RetentionEnabled {
@@ -283,6 +285,12 @@ func loadConfig() (appConfig, error) {
 	}
 	if config.DeliveryLease < 10*time.Second {
 		return config, errors.New("DELIVERY_LEASE_DURATION must be at least 10s")
+	}
+	if config.DeliveryTimeout, err = positiveDurationEnv("DELIVERY_TIMEOUT", forwarder.DefaultDeliveryTimeout); err != nil {
+		return config, err
+	}
+	if config.DeliveryTimeout >= config.DeliveryLease {
+		return config, errors.New("DELIVERY_TIMEOUT must be shorter than DELIVERY_LEASE_DURATION")
 	}
 	if config.ShutdownTimeout, err = positiveDurationEnv("SHUTDOWN_TIMEOUT", 10*time.Second); err != nil {
 		return config, err

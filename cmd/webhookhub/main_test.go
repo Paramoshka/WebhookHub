@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"webhookhub/internal/handler"
 )
@@ -27,8 +28,18 @@ func TestLoadConfigAcceptsValidEnvironment(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if config.DeliveryWorkers != 4 || config.MaxBodyBytes != 1<<20 {
+	if config.DeliveryWorkers != 4 || config.MaxBodyBytes != 1<<20 || config.DeliveryTimeout != 5*time.Second {
 		t.Fatalf("unexpected defaults: %+v", config)
+	}
+}
+
+func TestLoadConfigRejectsDeliveryTimeoutNotShorterThanLease(t *testing.T) {
+	setValidConfigEnvironment(t)
+	t.Setenv("DELIVERY_TIMEOUT", "30s")
+	t.Setenv("DELIVERY_LEASE_DURATION", "30s")
+
+	if _, err := loadConfig(); err == nil {
+		t.Fatal("expected delivery timeout equal to the lease to be rejected")
 	}
 }
 
@@ -169,6 +180,7 @@ func setValidConfigEnvironment(t *testing.T) {
 	t.Setenv("DELIVERY_WORKERS", "")
 	t.Setenv("DELIVERY_POLL_INTERVAL", "")
 	t.Setenv("DELIVERY_LEASE_DURATION", "")
+	t.Setenv("DELIVERY_TIMEOUT", "")
 	t.Setenv("SHUTDOWN_TIMEOUT", "")
 	t.Setenv("RETENTION_ENABLED", "")
 	t.Setenv("RETENTION_DAYS", "")

@@ -44,7 +44,7 @@ func TestForwardPreservesContentTypeAndSignature(t *testing.T) {
 				}
 				return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader("ok"))}, nil
 			})}
-			_, message, success := performDeliveryAttemptWithClient(context.Background(), client, model.ForwardingRule{Target: "https://example.com", OutgoingSecret: "secret"}, &model.Webhook{Payload: payload, Headers: string(encoded)})
+			_, message, success := performDeliveryAttemptWithClient(context.Background(), client, model.ForwardingRule{Target: "https://example.com", OutgoingSecret: "secret"}, &model.Webhook{Payload: payload, Headers: string(encoded)}, DefaultDeliveryTimeout)
 			if !success {
 				t.Fatal(message)
 			}
@@ -57,7 +57,7 @@ func TestForwardRejectsCorruptStoredHeaders(t *testing.T) {
 		t.Fatal("invalid stored headers must not be sent")
 		return nil, nil
 	})}
-	response, message, success := performDeliveryAttemptWithClient(context.Background(), client, model.ForwardingRule{Target: "https://example.com"}, &model.Webhook{Headers: `{"Content-Type":`})
+	response, message, success := performDeliveryAttemptWithClient(context.Background(), client, model.ForwardingRule{Target: "https://example.com"}, &model.Webhook{Headers: `{"Content-Type":`}, DefaultDeliveryTimeout)
 	if success || response.Captured || !strings.Contains(message, "decode stored request headers") {
 		t.Fatalf("unexpected result: %+v %q", response, message)
 	}
@@ -70,7 +70,7 @@ func TestDeliveryResponseCapture(t *testing.T) {
 			client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
 				return &http.Response{StatusCode: 500, Header: http.Header{"X-Request-Id": {"first", "second"}}, Body: io.NopCloser(bytes.NewReader(body))}, nil
 			})}
-			response, message, success := performDeliveryAttemptWithClient(context.Background(), client, model.ForwardingRule{Target: "https://example.com"}, &model.Webhook{})
+			response, message, success := performDeliveryAttemptWithClient(context.Background(), client, model.ForwardingRule{Target: "https://example.com"}, &model.Webhook{}, DefaultDeliveryTimeout)
 			if success || message == "" || !response.Captured || response.HTTPStatus != 500 || response.Truncated != (size > int(maxBody)) {
 				t.Fatalf("unexpected response metadata: status=%d captured=%v truncated=%v error=%q", response.HTTPStatus, response.Captured, response.Truncated, message)
 			}
@@ -85,7 +85,7 @@ func TestDeliveryResponseReadFailure(t *testing.T) {
 	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
 		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(io.MultiReader(strings.NewReader("partial"), failingReader{}))}, nil
 	})}
-	response, message, success := performDeliveryAttemptWithClient(context.Background(), client, model.ForwardingRule{Target: "https://example.com"}, &model.Webhook{})
+	response, message, success := performDeliveryAttemptWithClient(context.Background(), client, model.ForwardingRule{Target: "https://example.com"}, &model.Webhook{}, DefaultDeliveryTimeout)
 	if success || !response.Captured || string(response.Body) != "partial" || !strings.Contains(message, "broken stream") {
 		t.Fatalf("partial response lost: %+v %q", response, message)
 	}
@@ -137,6 +137,7 @@ func TestPerformDeliveryAttempt(t *testing.T) {
 		client,
 		model.ForwardingRule{Target: "https://example.com/hook"},
 		&model.Webhook{Payload: payload},
+		DefaultDeliveryTimeout,
 	)
 
 	if !success || response.HTTPStatus != http.StatusOK || errorMessage != "" {
@@ -159,10 +160,30 @@ func TestPerformDeliveryAttemptHonorsCancellation(t *testing.T) {
 		client,
 		model.ForwardingRule{Target: "https://example.com/hook"},
 		&model.Webhook{Payload: []byte("{}")},
+		DefaultDeliveryTimeout,
 	)
 
 	if success || !strings.Contains(errorMessage, context.Canceled.Error()) {
 		t.Fatalf("expected cancelled delivery, got success=%v error=%q", success, errorMessage)
+	}
+}
+
+func TestPerformDeliveryAttemptHonorsTimeout(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		<-r.Context().Done()
+		return nil, r.Context().Err()
+	})}
+
+	_, errorMessage, success := performDeliveryAttemptWithClient(
+		context.Background(),
+		client,
+		model.ForwardingRule{Target: "https://example.com/hook"},
+		&model.Webhook{Payload: []byte("{}")},
+		10*time.Millisecond,
+	)
+
+	if success || !strings.Contains(errorMessage, context.DeadlineExceeded.Error()) {
+		t.Fatalf("expected timed out delivery, got success=%v error=%q", success, errorMessage)
 	}
 }
 
