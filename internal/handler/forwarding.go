@@ -64,7 +64,7 @@ func EditForwardingForm(db *storage.DB) http.HandlerFunc {
 			return
 		}
 
-		rule, err := db.GetForwardingRule(source)
+		rule, err := db.GetForwardingRule(r.Context(), source)
 		if errors.Is(err, storage.ErrNotFound) {
 			http.Error(w, "Rule not found", http.StatusNotFound)
 			return
@@ -88,7 +88,7 @@ func UpdateForwardingRule(db *storage.DB) http.HandlerFunc {
 		}
 
 		source := strings.TrimSpace(r.FormValue("source"))
-		existing, err := db.GetForwardingRule(source)
+		existing, err := db.GetForwardingRule(r.Context(), source)
 		if errors.Is(err, storage.ErrNotFound) {
 			http.Error(w, "Rule not found", http.StatusNotFound)
 			return

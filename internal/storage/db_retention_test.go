@@ -86,7 +86,7 @@ func TestCleanupSkipsReplayLockAndQueuedWebhook(t *testing.T) {
 		t.Fatalf("queued webhook deleted: count=%d err=%v", deleted, err)
 	}
 	now := time.Now()
-	hooks, err := db.ClaimDeliverableWebhooks(1, now, now.Add(time.Minute))
+	hooks, err := db.ClaimDeliverableWebhooks(context.Background(), 1, now, now.Add(time.Minute))
 	if err != nil || len(hooks) != 1 || hooks[0].ID != hook.ID {
 		t.Fatalf("replayed webhook cannot be claimed: hooks=%v err=%v", hooks, err)
 	}
@@ -114,7 +114,7 @@ func TestCleanupKeepsLockUntilDeletion(t *testing.T) {
 			t.Errorf("expected row lock conflict, got %v", err)
 		}
 		now := time.Now()
-		hooks, err := db.ClaimDeliverableWebhooks(1, now, now.Add(time.Minute))
+		hooks, err := db.ClaimDeliverableWebhooks(context.Background(), 1, now, now.Add(time.Minute))
 		if err != nil || len(hooks) != 0 {
 			t.Errorf("worker claimed cleanup candidate: hooks=%v err=%v", hooks, err)
 		}
@@ -160,7 +160,7 @@ func createRetentionHook(t *testing.T, db *DB, status string, receivedAt time.Ti
 	if err := db.Save(&hook); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.CreateDeliveryAttempt(&model.DeliveryAttempt{
+	if _, err := createAttemptFixture(db, &model.DeliveryAttempt{
 		WebhookID: hook.ID, Source: hook.Source, Status: "success", StartedAt: receivedAt,
 		ResponseBody: []byte("saved response"), ResponseHeaders: `{"Content-Type":["text/plain"]}`, ResponseCaptured: true,
 	}); err != nil {

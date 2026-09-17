@@ -289,8 +289,8 @@ func loadConfig() (appConfig, error) {
 	if config.DeliveryTimeout, err = positiveDurationEnv("DELIVERY_TIMEOUT", forwarder.DefaultDeliveryTimeout); err != nil {
 		return config, err
 	}
-	if config.DeliveryTimeout >= config.DeliveryLease {
-		return config, errors.New("DELIVERY_TIMEOUT must be shorter than DELIVERY_LEASE_DURATION")
+	if config.DeliveryTimeout > config.DeliveryLease-forwarder.DeliveryFinalizationReserve {
+		return config, errors.New("DELIVERY_TIMEOUT must leave at least 5s before DELIVERY_LEASE_DURATION")
 	}
 	if config.ShutdownTimeout, err = positiveDurationEnv("SHUTDOWN_TIMEOUT", 10*time.Second); err != nil {
 		return config, err

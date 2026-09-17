@@ -44,7 +44,7 @@ func ReceiveWebhook(db *storage.DB, maxBodyBytes int64) http.HandlerFunc {
 		}
 
 		now := time.Now()
-		rule, err := db.GetForwardingRule(source)
+		rule, err := db.GetForwardingRule(r.Context(), source)
 		if err != nil && !errors.Is(err, storage.ErrNotFound) {
 			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
 			return

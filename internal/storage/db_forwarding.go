@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"errors"
 	"webhookhub/internal/model"
 
@@ -25,9 +26,9 @@ func (d *DB) GetForwardingRules() ([]model.ForwardingRule, error) {
 	return rules, err
 }
 
-func (d *DB) GetForwardingRule(source string) (model.ForwardingRule, error) {
+func (d *DB) GetForwardingRule(ctx context.Context, source string) (model.ForwardingRule, error) {
 	var rule model.ForwardingRule
-	err := d.conn.Where("source = ?", source).First(&rule).Error
+	err := d.conn.WithContext(ctx).Where("source = ?", source).First(&rule).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return model.ForwardingRule{}, ErrNotFound
 	}

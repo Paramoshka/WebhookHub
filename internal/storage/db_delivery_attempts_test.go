@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -43,17 +44,21 @@ func TestMigrateLegacyAttemptResponses(t *testing.T) {
 func TestAttemptResponsesSurviveReplay(t *testing.T) {
 	db := openTestDB(t)
 	truncateTestTables(t, db)
-	hook := model.Webhook{Source: "history", Status: "success", ReceivedAt: time.Now()}
+	hook := model.Webhook{Source: "history", Status: "pending", ReceivedAt: time.Now()}
 	if err := db.Save(&hook); err != nil {
 		t.Fatal(err)
 	}
 	for _, code := range []int{500, 200} {
-		id, err := db.CreateDeliveryAttempt(&model.DeliveryAttempt{WebhookID: hook.ID, Status: "pending", StartedAt: time.Now()})
+		if err := db.ResetWebhookDeliveryState(int(hook.ID)); err != nil {
+			t.Fatal(err)
+		}
+		hook = claimTestWebhook(t, db)
+		id, err := db.CreateDeliveryAttempt(context.Background(), &hook, "")
 		if err != nil {
 			t.Fatal(err)
 		}
 		response := model.DeliveryResponse{HTTPStatus: code, Body: []byte{byte(code)}, Headers: `{"X-Test":["saved"]}`, Captured: true, Truncated: code == 500}
-		if err := db.FinishDeliveryAttempt(id, "success", response, "", 12); err != nil {
+		if err := db.FinishDelivery(context.Background(), &hook, id, DeliveryResult{Status: "success", Response: response, DurationMS: 12}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -91,11 +96,12 @@ func TestAttemptResponsesSurviveReplay(t *testing.T) {
 func TestFinishAttemptRollsBackOnWebhookUpdateFailure(t *testing.T) {
 	db := openTestDB(t)
 	truncateTestTables(t, db)
-	hook := model.Webhook{Source: "rollback", Status: "processing", ReceivedAt: time.Now()}
+	hook := model.Webhook{Source: "rollback", Status: "pending", ReceivedAt: time.Now()}
 	if err := db.Save(&hook); err != nil {
 		t.Fatal(err)
 	}
-	id, err := db.CreateDeliveryAttempt(&model.DeliveryAttempt{WebhookID: hook.ID, Status: "pending", StartedAt: time.Now()})
+	hook = claimTestWebhook(t, db)
+	id, err := db.CreateDeliveryAttempt(context.Background(), &hook, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,11 +113,15 @@ func TestFinishAttemptRollsBackOnWebhookUpdateFailure(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	if err := db.FinishDeliveryAttempt(id, "success", model.DeliveryResponse{HTTPStatus: 200, Body: []byte("ok"), Captured: true}, "", 1); err == nil {
+	if err := db.FinishDelivery(context.Background(), &hook, id, DeliveryResult{Status: "success", Response: model.DeliveryResponse{HTTPStatus: 200, Body: []byte("ok"), Captured: true}, DurationMS: 1}); err == nil {
 		t.Fatal("expected update failure")
 	}
 	attempt, err := db.DeliveryAttemptByID(hook.ID, id)
 	if err != nil || attempt.Status != "pending" || attempt.ResponseCaptured {
 		t.Fatalf("attempt update did not roll back: %+v %v", attempt, err)
+	}
+	stored, err := db.FindByID(int(hook.ID))
+	if err != nil || stored.Status != "processing" || stored.DeliveryLeaseUntil == nil || stored.DeliveryLeaseVersion != hook.DeliveryLeaseVersion {
+		t.Fatalf("webhook update did not roll back: %+v %v", stored, err)
 	}
 }

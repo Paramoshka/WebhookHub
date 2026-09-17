@@ -139,7 +139,10 @@ DELIVERY_TIMEOUT=5s
 SHUTDOWN_TIMEOUT=10s
 ```
 
-`DELIVERY_TIMEOUT` is the deadline for a single delivery attempt and must be shorter than `DELIVERY_LEASE_DURATION`, otherwise another worker could claim the webhook while the attempt is still running.
+`DELIVERY_TIMEOUT` limits a single HTTP delivery attempt. It must leave at least 5 seconds within `DELIVERY_LEASE_DURATION` for finalization (for example, timeout 5s and lease 10s). Preparation time also consumes the lease: the HTTP deadline is capped at the remaining lease minus those 5 seconds. Finalization has its own deadline of at most 5 seconds, never beyond the lease, including when a worker is cancelled.
+Each claim increments an internal lease version. Creating an attempt and atomically saving its result and webhook state require the current unexpired lease; an old worker cannot overwrite a newer owner's result. If finalization fails or the lease expires, recovery happens through the existing reclaim mechanism.
+
+When upgrading from a version without lease ownership checks, stop all old workers before starting the new version. Startup adds the lease-version column automatically; mixed old/new workers are not supported during this upgrade.
 
 Delivery is at-least-once. A database lease lets another worker recover a webhook left in `processing` after a crash. A duplicate remains possible if the target accepted a request but WebhookHub stopped before persisting the result.
 Replay and delete requests for a webhook currently in `processing` are rejected with HTTP `409 Conflict` so an active delivery cannot be changed underneath a worker.

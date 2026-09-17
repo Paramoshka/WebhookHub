@@ -33,13 +33,22 @@ func TestLoadConfigAcceptsValidEnvironment(t *testing.T) {
 	}
 }
 
-func TestLoadConfigRejectsDeliveryTimeoutNotShorterThanLease(t *testing.T) {
-	setValidConfigEnvironment(t)
-	t.Setenv("DELIVERY_TIMEOUT", "30s")
-	t.Setenv("DELIVERY_LEASE_DURATION", "30s")
-
-	if _, err := loadConfig(); err == nil {
-		t.Fatal("expected delivery timeout equal to the lease to be rejected")
+func TestLoadConfigRequiresDeliveryFinalizationReserve(t *testing.T) {
+	for _, tt := range []struct {
+		timeout string
+		valid   bool
+	}{
+		{"5s", true}, {"5.000000001s", false}, {"9.9s", false}, {"10s", false}, {"0s", false}, {"-1s", false},
+	} {
+		t.Run(tt.timeout, func(t *testing.T) {
+			setValidConfigEnvironment(t)
+			t.Setenv("DELIVERY_TIMEOUT", tt.timeout)
+			t.Setenv("DELIVERY_LEASE_DURATION", "10s")
+			_, err := loadConfig()
+			if (err == nil) != tt.valid {
+				t.Fatalf("valid=%v error=%v", tt.valid, err)
+			}
+		})
 	}
 }
 
@@ -175,6 +184,7 @@ func setValidConfigEnvironment(t *testing.T) {
 	t.Setenv("ADMIN_PASSWORD", "strong-password")
 	t.Setenv("SESSION_KEY", strings.Repeat("s", 32))
 	t.Setenv("COOKIE_SECURE", "false")
+	t.Setenv("TRUST_PROXY_HEADERS", "false")
 	t.Setenv("PORT", "")
 	t.Setenv("MAX_BODY_BYTES", "")
 	t.Setenv("DELIVERY_WORKERS", "")

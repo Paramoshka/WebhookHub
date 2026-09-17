@@ -192,3 +192,55 @@ type roundTripFunc func(*http.Request) (*http.Response, error)
 func (f roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
 	return f(request)
 }
+
+func TestDeliveryDeadlineReservesLeaseTime(t *testing.T) {
+	for _, tt := range []struct {
+		name                       string
+		remaining, timeout, parent time.Duration
+	}{
+		{"lease bounds request", 6 * time.Second, 20 * time.Second, time.Minute},
+		{"configured timeout", time.Minute, 2 * time.Second, time.Minute},
+		{"parent deadline", time.Minute, 5 * time.Second, time.Second},
+		{"zero timeout defaults", time.Minute, 0, time.Minute},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			lease := time.Now().Add(tt.remaining)
+			parent, cancel := context.WithTimeout(context.Background(), tt.parent)
+			defer cancel()
+			start := time.Now()
+			client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+				deadline, ok := r.Context().Deadline()
+				if !ok || deadline.After(lease.Add(-DeliveryFinalizationReserve)) {
+					t.Fatal("request exceeds lease reserve")
+				}
+				limit := tt.timeout
+				if limit <= 0 {
+					limit = DefaultDeliveryTimeout
+				}
+				expected := min(limit, tt.remaining-DeliveryFinalizationReserve, tt.parent)
+				if delta := deadline.Sub(start); delta > expected+100*time.Millisecond || delta < expected-100*time.Millisecond {
+					t.Fatalf("unexpected deadline offset %s, want about %s", delta, expected)
+				}
+				return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader("ok"))}, nil
+			})}
+			_, message, success := performDeliveryAttemptWithClient(parent, client, model.ForwardingRule{Target: "https://example.com"}, &model.Webhook{DeliveryLeaseUntil: &lease}, tt.timeout)
+			if !success {
+				t.Fatal(message)
+			}
+		})
+	}
+}
+
+func TestDeliveryDoesNotSendWithoutLeaseBudget(t *testing.T) {
+	for _, remaining := range []time.Duration{-time.Second, DeliveryFinalizationReserve - time.Millisecond} {
+		lease := time.Now().Add(remaining)
+		client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			t.Fatal("request sent after lease budget exhausted")
+			return nil, nil
+		})}
+		_, message, success := performDeliveryAttemptWithClient(context.Background(), client, model.ForwardingRule{Target: "https://example.com"}, &model.Webhook{DeliveryLeaseUntil: &lease}, DefaultDeliveryTimeout)
+		if success || !strings.Contains(message, context.DeadlineExceeded.Error()) {
+			t.Fatalf("expected deadline error, got %v %s", success, message)
+		}
+	}
+}
