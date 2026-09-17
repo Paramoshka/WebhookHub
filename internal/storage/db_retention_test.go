@@ -130,6 +130,30 @@ func TestCleanupKeepsLockUntilDeletion(t *testing.T) {
 	}
 }
 
+func TestRetentionWorkerCleansUpOnStart(t *testing.T) {
+	db := openTestDB(t)
+	truncateTestTables(t, db)
+	hook := createRetentionHook(t, db, "success", time.Now().Add(-48*time.Hour))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	workers := StartRetentionWorker(ctx, db, 1, time.Hour, 10)
+	defer func() {
+		cancel()
+		workers.Wait()
+	}()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		if _, err := db.FindByID(int(hook.ID)); errors.Is(err, ErrNotFound) {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("expired webhook was not removed on worker start")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
 func createRetentionHook(t *testing.T, db *DB, status string, receivedAt time.Time) model.Webhook {
 	t.Helper()
 	hook := model.Webhook{Source: "retention", Status: status, ReceivedAt: receivedAt}
