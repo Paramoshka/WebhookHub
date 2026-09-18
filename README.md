@@ -123,6 +123,8 @@ Required values:
 - `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
 
 Production deployments behind HTTPS should set `COOKIE_SECURE=true`. PostgreSQL TLS can be configured with `POSTGRES_SSLMODE` (default: `disable`).
+Failed logins are limited to 10 per 15-minute window per client IP; in-flight password checks also occupy slots. Successful login clears recorded failures without dropping in-flight checks. Counters are in memory, reset on restart, and are independent for each replica.
+Enable `TRUST_PROXY_HEADERS=true` only behind one trusted reverse proxy that appends the actual client IP to `X-Forwarded-For` or overwrites the header. Direct client access to WebhookHub must be blocked. The limiter uses the last address, validates and normalizes it, and falls back to the connection address if it is invalid. With a chain of proxies, clients may share a bucket. Forwarded headers are ignored by default.
 `ADMIN_EMAIL` and `ADMIN_PASSWORD` are authoritative bootstrap credentials: on startup WebhookHub creates the single admin or updates that account to match the configured values.
 
 Runtime limits and delivery workers:
@@ -133,8 +135,14 @@ MAX_BODY_BYTES=1048576
 DELIVERY_WORKERS=4
 DELIVERY_POLL_INTERVAL=1s
 DELIVERY_LEASE_DURATION=30s
+DELIVERY_TIMEOUT=5s
 SHUTDOWN_TIMEOUT=10s
 ```
+
+`DELIVERY_TIMEOUT` limits a single HTTP delivery attempt. It must leave at least 5 seconds within `DELIVERY_LEASE_DURATION` for finalization (for example, timeout 5s and lease 10s). Preparation time also consumes the lease: the HTTP deadline is capped at the remaining lease minus those 5 seconds. Finalization has its own deadline of at most 5 seconds, never beyond the lease, including when a worker is cancelled.
+Each claim increments an internal lease version. Creating an attempt and atomically saving its result and webhook state require the current unexpired lease; an old worker cannot overwrite a newer owner's result. If finalization fails or the lease expires, recovery happens through the existing reclaim mechanism.
+
+When upgrading from a version without lease ownership checks, stop all old workers before starting the new version. Startup adds the lease-version column automatically; mixed old/new workers are not supported during this upgrade.
 
 Delivery is at-least-once. A database lease lets another worker recover a webhook left in `processing` after a crash. A duplicate remains possible if the target accepted a request but WebhookHub stopped before persisting the result.
 Replay and delete requests for a webhook currently in `processing` are rejected with HTTP `409 Conflict` so an active delivery cannot be changed underneath a worker.
@@ -260,3 +268,7 @@ dependencies remain subject to their own licenses.
 
 Contributions are accepted under the [Contributor License Agreement](CLA.md)
 and the process described in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### Vendored frontend dependency
+
+htmx is served locally and embedded in the application. See [version, provenance, license and update procedure](docs/vendor-htmx.md).

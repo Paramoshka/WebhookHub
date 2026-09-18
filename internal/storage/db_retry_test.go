@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"errors"
 	"os"
 	"sort"
@@ -32,7 +33,7 @@ func TestClaimDeliverableWebhooks(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	attemptID, err := db.CreateDeliveryAttempt(&model.DeliveryAttempt{
+	attemptID, err := createAttemptFixture(db, &model.DeliveryAttempt{
 		WebhookID: webhooks[3].ID,
 		Source:    webhooks[3].Source,
 		Status:    "pending",
@@ -43,7 +44,7 @@ func TestClaimDeliverableWebhooks(t *testing.T) {
 	}
 
 	leaseUntil := now.Add(30 * time.Second)
-	claimed, err := db.ClaimDeliverableWebhooks(10, now, leaseUntil)
+	claimed, err := db.ClaimDeliverableWebhooks(context.Background(), 10, now, leaseUntil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +113,7 @@ func TestWebhookMutationsRejectProcessingWebhook(t *testing.T) {
 	if err := db.Save(&webhook); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.CreateDeliveryAttempt(&model.DeliveryAttempt{
+	if _, err := createAttemptFixture(db, &model.DeliveryAttempt{
 		WebhookID: webhook.ID,
 		Source:    webhook.Source,
 		Status:    "pending",
@@ -219,4 +220,23 @@ func truncateTestTables(t *testing.T, db *DB) {
 	if err := db.conn.Exec("TRUNCATE TABLE delivery_attempts, webhooks, forwarding_rules, users RESTART IDENTITY CASCADE").Error; err != nil {
 		t.Fatal(err)
 	}
+}
+
+// Historical/expired attempts are inserted directly to exercise recovery.
+func createAttemptFixture(db *DB, attempt *model.DeliveryAttempt) (uint, error) {
+	err := db.conn.Create(attempt).Error
+	return attempt.ID, err
+}
+
+func claimTestWebhook(t *testing.T, db *DB) model.Webhook {
+	t.Helper()
+	now := time.Now()
+	hooks, err := db.ClaimDeliverableWebhooks(context.Background(), 1, now, now.Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hooks) != 1 {
+		t.Fatalf("expected one claim, got %d", len(hooks))
+	}
+	return hooks[0]
 }

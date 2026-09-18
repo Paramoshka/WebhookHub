@@ -22,25 +22,31 @@ func StartRetentionWorker(ctx context.Context, db *DB, retentionDays int, interv
 		batchSize = 300
 	}
 
+	cleanup := func() {
+		cutoff := time.Now().AddDate(0, 0, -retentionDays)
+		deleted, err := db.CleanupExpiredWebhooks(cutoff, batchSize)
+		if err != nil {
+			log.Printf("cleanup expired webhooks failed: %v", err)
+			return
+		}
+		if deleted > 0 {
+			log.Printf("cleanup expired webhooks: removed %d records", deleted)
+		}
+	}
+
 	ticker := time.NewTicker(interval)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		defer ticker.Stop()
+		// Run once on startup so daily restarts do not postpone cleanup forever.
+		cleanup()
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				cutoff := time.Now().AddDate(0, 0, -retentionDays)
-				deleted, err := db.CleanupExpiredWebhooks(cutoff, batchSize)
-				if err != nil {
-					log.Printf("cleanup expired webhooks failed: %v", err)
-					continue
-				}
-				if deleted > 0 {
-					log.Printf("cleanup expired webhooks: removed %d records", deleted)
-				}
+				cleanup()
 			}
 		}
 	}()

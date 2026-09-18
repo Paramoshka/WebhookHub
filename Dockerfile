@@ -18,7 +18,6 @@ FROM gcr.io/distroless/static-debian13:nonroot@sha256:e2e927ec666bae08560abb3c55
 WORKDIR /app
 
 COPY --from=builder --chown=nonroot:nonroot /app/webhookhub /app/webhookhub
-COPY --from=builder --chown=nonroot:nonroot /app/web /app/web
 
 EXPOSE 8080
 

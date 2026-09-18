@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"webhookhub/internal/handler"
 )
@@ -27,13 +28,32 @@ func TestLoadConfigAcceptsValidEnvironment(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if config.DeliveryWorkers != 4 || config.MaxBodyBytes != 1<<20 {
+	if config.DeliveryWorkers != 4 || config.MaxBodyBytes != 1<<20 || config.DeliveryTimeout != 5*time.Second {
 		t.Fatalf("unexpected defaults: %+v", config)
 	}
 }
 
+func TestLoadConfigRequiresDeliveryFinalizationReserve(t *testing.T) {
+	for _, tt := range []struct {
+		timeout string
+		valid   bool
+	}{
+		{"5s", true}, {"5.000000001s", false}, {"9.9s", false}, {"10s", false}, {"0s", false}, {"-1s", false},
+	} {
+		t.Run(tt.timeout, func(t *testing.T) {
+			setValidConfigEnvironment(t)
+			t.Setenv("DELIVERY_TIMEOUT", tt.timeout)
+			t.Setenv("DELIVERY_LEASE_DURATION", "10s")
+			_, err := loadConfig()
+			if (err == nil) != tt.valid {
+				t.Fatalf("valid=%v error=%v", tt.valid, err)
+			}
+		})
+	}
+}
+
 func TestRoutesEnforceWebhookMethod(t *testing.T) {
-	auth, err := handler.NewAuth(strings.Repeat("a", 32), false)
+	auth, err := handler.NewAuth(strings.Repeat("a", 32), false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +68,7 @@ func TestRoutesEnforceWebhookMethod(t *testing.T) {
 }
 
 func TestRoutesProtectInspect(t *testing.T) {
-	auth, err := handler.NewAuth(strings.Repeat("a", 32), false)
+	auth, err := handler.NewAuth(strings.Repeat("a", 32), false, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,6 +78,40 @@ func TestRoutesProtectInspect(t *testing.T) {
 		if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/login" {
 			t.Fatalf("%s must require login, got %d", path, response.Code)
 		}
+	}
+}
+
+func TestRoutesSetSecurityHeaders(t *testing.T) {
+	auth, err := handler.NewAuth(strings.Repeat("a", 32), false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+
+	routes(nil, auth, 1024).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+
+	for header, want := range map[string]string{
+		"X-Content-Type-Options": "nosniff",
+		"X-Frame-Options":        "DENY",
+		"Referrer-Policy":        "same-origin",
+	} {
+		if got := response.Header().Get(header); got != want {
+			t.Fatalf("expected %s=%q, got %q", header, want, got)
+		}
+	}
+}
+
+func TestRoutesServeEmbeddedStaticAsset(t *testing.T) {
+	auth, err := handler.NewAuth(strings.Repeat("a", 32), false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+
+	routes(nil, auth, 1024).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/static/htmx.min.js", nil))
+
+	if response.Code != http.StatusOK || response.Body.Len() == 0 {
+		t.Fatalf("expected embedded asset, got status %d with %d bytes", response.Code, response.Body.Len())
 	}
 }
 
@@ -130,11 +184,13 @@ func setValidConfigEnvironment(t *testing.T) {
 	t.Setenv("ADMIN_PASSWORD", "strong-password")
 	t.Setenv("SESSION_KEY", strings.Repeat("s", 32))
 	t.Setenv("COOKIE_SECURE", "false")
+	t.Setenv("TRUST_PROXY_HEADERS", "false")
 	t.Setenv("PORT", "")
 	t.Setenv("MAX_BODY_BYTES", "")
 	t.Setenv("DELIVERY_WORKERS", "")
 	t.Setenv("DELIVERY_POLL_INTERVAL", "")
 	t.Setenv("DELIVERY_LEASE_DURATION", "")
+	t.Setenv("DELIVERY_TIMEOUT", "")
 	t.Setenv("SHUTDOWN_TIMEOUT", "")
 	t.Setenv("RETENTION_ENABLED", "")
 	t.Setenv("RETENTION_DAYS", "")

@@ -2,7 +2,6 @@ package handler
 
 import (
 	"errors"
-	"html/template"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -30,15 +29,7 @@ func ForwardingUI(db *storage.DB) http.HandlerFunc {
 			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		tmpl, err := template.ParseFiles(
-			"web/templates/base.html",
-			"web/templates/forwarding.html",
-		)
-		if err != nil {
-			http.Error(w, "Template load failed", http.StatusInternalServerError)
-			return
-		}
-		if err := tmpl.ExecuteTemplate(w, "base", ForwardingPageData{Rules: rules, CSRFToken: CSRFToken(r)}); err != nil {
+		if err := forwardingTemplates.ExecuteTemplate(w, "base", ForwardingPageData{Rules: rules, CSRFToken: CSRFToken(r)}); err != nil {
 			http.Error(w, "Template render failed", http.StatusInternalServerError)
 		}
 	}
@@ -73,7 +64,7 @@ func EditForwardingForm(db *storage.DB) http.HandlerFunc {
 			return
 		}
 
-		rule, err := db.GetForwardingRule(source)
+		rule, err := db.GetForwardingRule(r.Context(), source)
 		if errors.Is(err, storage.ErrNotFound) {
 			http.Error(w, "Rule not found", http.StatusNotFound)
 			return
@@ -83,12 +74,7 @@ func EditForwardingForm(db *storage.DB) http.HandlerFunc {
 			return
 		}
 
-		tmpl, err := template.ParseFiles("web/templates/edit_form.html")
-		if err != nil {
-			http.Error(w, "Template load failed", http.StatusInternalServerError)
-			return
-		}
-		if err := tmpl.Execute(w, EditForwardingData{Rule: rule, CSRFToken: CSRFToken(r)}); err != nil {
+		if err := editFormTemplates.Execute(w, EditForwardingData{Rule: rule, CSRFToken: CSRFToken(r)}); err != nil {
 			http.Error(w, "Template render failed", http.StatusInternalServerError)
 		}
 	}
@@ -102,7 +88,7 @@ func UpdateForwardingRule(db *storage.DB) http.HandlerFunc {
 		}
 
 		source := strings.TrimSpace(r.FormValue("source"))
-		existing, err := db.GetForwardingRule(source)
+		existing, err := db.GetForwardingRule(r.Context(), source)
 		if errors.Is(err, storage.ErrNotFound) {
 			http.Error(w, "Rule not found", http.StatusNotFound)
 			return

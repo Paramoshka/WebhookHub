@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"html/template"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -61,15 +60,7 @@ func DLQUI(db *storage.DB) http.HandlerFunc {
 			CSRFToken:   CSRFToken(r),
 		}
 
-		tmpl, err := template.ParseFiles(
-			"web/templates/base.html",
-			"web/templates/dlq.html",
-		)
-		if err != nil {
-			http.Error(w, "Template load failed", http.StatusInternalServerError)
-			return
-		}
-		if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
+		if err := dlqTemplates.ExecuteTemplate(w, "base", data); err != nil {
 			http.Error(w, "Template render failed", http.StatusInternalServerError)
 		}
 	}

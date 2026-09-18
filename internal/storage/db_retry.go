@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"time"
 	"webhookhub/internal/model"
 
@@ -8,13 +9,13 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func (d *DB) ClaimDeliverableWebhooks(limit int, now, leaseUntil time.Time) ([]model.Webhook, error) {
+func (d *DB) ClaimDeliverableWebhooks(ctx context.Context, limit int, now, leaseUntil time.Time) ([]model.Webhook, error) {
 	if limit <= 0 {
 		return nil, nil
 	}
 
 	var hooks []model.Webhook
-	err := d.conn.Transaction(func(tx *gorm.DB) error {
+	err := d.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.
 			Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
 			Where(
@@ -56,9 +57,10 @@ func (d *DB) ClaimDeliverableWebhooks(limit int, now, leaseUntil time.Time) ([]m
 		return tx.Model(&model.Webhook{}).
 			Where("id IN ?", ids).
 			Updates(map[string]any{
-				"status":               "processing",
-				"next_retry_at":        nil,
-				"delivery_lease_until": &leaseUntil,
+				"status":                 "processing",
+				"next_retry_at":          nil,
+				"delivery_lease_until":   &leaseUntil,
+				"delivery_lease_version": gorm.Expr("delivery_lease_version + 1"),
 			}).Error
 	})
 	if err != nil {
@@ -66,6 +68,7 @@ func (d *DB) ClaimDeliverableWebhooks(limit int, now, leaseUntil time.Time) ([]m
 	}
 
 	for i := range hooks {
+		hooks[i].DeliveryLeaseVersion++
 		hooks[i].Status = "processing"
 		hooks[i].NextRetryAt = nil
 		hooks[i].DeliveryLeaseUntil = &leaseUntil

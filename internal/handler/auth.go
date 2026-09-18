@@ -6,8 +6,8 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"errors"
-	"html/template"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"webhookhub/internal/storage"
@@ -23,10 +23,16 @@ type authContextKey string
 
 const csrfContextKey authContextKey = "csrf_token"
 
+// dummyPasswordHash is compared against when the email is unknown so that
+// response timing does not reveal whether an account exists.
+var dummyPasswordHash = []byte("$2a$10$l6AgED.zKbzavi0YpUsLou4kEK/KTfH4Bm/CX5mwI/cuTLX9P5LbW")
+
 type Auth struct {
-	cookies      *securecookie.SecureCookie
-	loginCookies *securecookie.SecureCookie
-	secure       bool
+	cookies           *securecookie.SecureCookie
+	loginCookies      *securecookie.SecureCookie
+	secure            bool
+	trustProxyHeaders bool
+	loginLimiter      *loginLimiter
 }
 
 type sessionData struct {
@@ -38,7 +44,7 @@ type LoginPageData struct {
 	CSRFToken string
 }
 
-func NewAuth(sessionKey string, secure bool) (*Auth, error) {
+func NewAuth(sessionKey string, secure, trustProxyHeaders bool) (*Auth, error) {
 	if len(sessionKey) < 32 {
 		return nil, errors.New("SESSION_KEY must contain at least 32 characters")
 	}
@@ -48,7 +54,13 @@ func NewAuth(sessionKey string, secure bool) (*Auth, error) {
 	loginCookies := securecookie.New([]byte(sessionKey), nil)
 	loginCookies.MaxAge(loginCSRFMaxAgeSeconds)
 
-	return &Auth{cookies: cookies, loginCookies: loginCookies, secure: secure}, nil
+	return &Auth{
+		cookies:           cookies,
+		loginCookies:      loginCookies,
+		secure:            secure,
+		trustProxyHeaders: trustProxyHeaders,
+		loginLimiter:      newLoginLimiter(),
+	}, nil
 }
 
 func (a *Auth) Login(db *storage.DB) http.HandlerFunc {
@@ -74,12 +86,7 @@ func (a *Auth) Login(db *storage.DB) http.HandlerFunc {
 				SameSite: http.SameSiteStrictMode,
 			})
 
-			tmpl, err := template.ParseFiles("web/templates/login.html")
-			if err != nil {
-				http.Error(w, "Template load failed", http.StatusInternalServerError)
-				return
-			}
-			if err := tmpl.Execute(w, LoginPageData{CSRFToken: csrfToken}); err != nil {
+			if err := loginTemplates.Execute(w, LoginPageData{CSRFToken: csrfToken}); err != nil {
 				http.Error(w, "Template render failed", http.StatusInternalServerError)
 			}
 			return
@@ -94,22 +101,35 @@ func (a *Auth) Login(db *storage.DB) http.HandlerFunc {
 			return
 		}
 
+		reservation, retryAfter := a.loginLimiter.reserve(clientIP(r, a.trustProxyHeaders))
+		if reservation == nil {
+			w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
+			http.Error(w, "Too many failed login attempts", http.StatusTooManyRequests)
+			return
+		}
+		outcome := loginAborted
+		defer func() { reservation.finish(outcome) }()
+
 		email := strings.TrimSpace(r.FormValue("username"))
 		password := r.FormValue("password")
 		user, err := db.FindUserByEmail(email)
-		if errors.Is(err, storage.ErrNotFound) {
+		switch {
+		case errors.Is(err, storage.ErrNotFound):
+			_ = bcrypt.CompareHashAndPassword(dummyPasswordHash, []byte(password))
+			outcome = loginFailed
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
-		}
-		if err != nil {
+		case err != nil:
 			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
 			return
 		}
 
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+			outcome = loginFailed
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
+		outcome = loginSucceeded
 
 		csrfToken, err := randomToken()
 		if err != nil {

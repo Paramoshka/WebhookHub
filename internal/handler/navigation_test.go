@@ -4,7 +4,6 @@ import (
 	"html"
 	"net/http/httptest"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -21,7 +20,6 @@ func (s *testListStore) Filtered(_ storage.WebhookFilter, _, offset int) ([]mode
 func (*testListStore) CountFiltered(storage.WebhookFilter) (int, error) { return 40, nil }
 
 func TestDashboardRestoresPageAndFilters(t *testing.T) {
-	t.Chdir(filepath.Join(projectTemplateDir(t), "..", ".."))
 	values := url.Values{"page": {"3"}, "source": {"test"}, "q": {"a&b + Привет"}}
 	r := httptest.NewRequest("GET", "/dashboard?"+values.Encode(), nil)
 	w := httptest.NewRecorder()
@@ -33,7 +31,6 @@ func TestDashboardRestoresPageAndFilters(t *testing.T) {
 }
 
 func TestWebhookListHistoryOnlyForNavigation(t *testing.T) {
-	t.Chdir(filepath.Join(projectTemplateDir(t), "..", ".."))
 	values := url.Values{"page": {"3"}, "q": {"a&b + Привет"}}
 	for _, navigate := range []bool{false, true} {
 		store := &testListStore{}

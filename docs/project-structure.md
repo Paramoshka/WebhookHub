@@ -14,7 +14,7 @@ This document describes the folder structure of the WebhookHub project.
     │   ├── model/              # GORM models (Webhook, DeliveryAttempt, ForwardingRule, User)
     │   └── storage/            # Database access helpers and query methods
     │
-    ├── web/                    # static assets, templates, frontend (if using built-in UI)
+    ├── web/                    # embedded static assets and templates (web/embed.go)
     │   ├── static/
     │   └── templates/
     │

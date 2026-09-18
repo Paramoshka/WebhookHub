@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"html/template"
 	"net/http"
 	"strings"
 	"webhookhub/internal/storage"
@@ -10,14 +9,6 @@ import (
 func DashboardUI(db *storage.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		filter, page := parseWebhookFilterAndPage(r)
-		tmpl, err := template.ParseFiles(
-			"web/templates/base.html",
-			"web/templates/dashboard.html",
-		)
-		if err != nil {
-			http.Error(w, "Template load failed", http.StatusInternalServerError)
-			return
-		}
 
 		data := WebhookPageData{
 			CurrentURL: buildWebhookListURL(r.URL.Query(), page),
@@ -29,7 +20,7 @@ func DashboardUI(db *storage.DB) http.HandlerFunc {
 			To:         formatDateTimeInput(filter.To),
 			CSRFToken:  CSRFToken(r),
 		}
-		if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
+		if err := dashboardTemplates.ExecuteTemplate(w, "base", data); err != nil {
 			http.Error(w, "Template render failed", http.StatusInternalServerError)
 		}
 	}
@@ -47,12 +38,7 @@ func DeliveryMetricsPartial(db *storage.DB) http.HandlerFunc {
 			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		tmpl, err := template.ParseFiles("web/templates/metrics.html")
-		if err != nil {
-			http.Error(w, "Template load failed", http.StatusInternalServerError)
-			return
-		}
-		if err := tmpl.Execute(w, DeliveryMetricsData{DeliveryMetrics: metrics, CSRFToken: CSRFToken(r)}); err != nil {
+		if err := metricsTemplates.Execute(w, DeliveryMetricsData{DeliveryMetrics: metrics, CSRFToken: CSRFToken(r)}); err != nil {
 			http.Error(w, "Template render failed", http.StatusInternalServerError)
 		}
 	}

@@ -67,6 +67,46 @@ func TestPayloadSearch(t *testing.T) {
 	}
 }
 
+func TestPayloadSearchEscapesWildcards(t *testing.T) {
+	db := openTestDB(t)
+	truncateTestTables(t, db)
+	hooks := []model.Webhook{
+		{Source: "percent", Payload: []byte(`{"discount":"50%"}`)},
+		{Source: "underscore", Payload: []byte(`field_name=value`)},
+		{Source: "backslash", Payload: []byte(`C:\temp\file`)},
+		{Source: "plain", Payload: []byte(`50 percent off`)},
+	}
+	for i := range hooks {
+		hooks[i].Status = "success"
+		hooks[i].ReceivedAt = time.Now()
+		if err := db.Save(&hooks[i]); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for _, test := range []struct {
+		query string
+		want  int
+	}{
+		{query: `50%`, want: 1},
+		{query: `%`, want: 1},
+		{query: `_`, want: 1},
+		{query: `\`, want: 1},
+		{query: `field_name`, want: 1},
+	} {
+		t.Run(test.query, func(t *testing.T) {
+			filter := WebhookFilter{Query: test.query}
+			list, err := db.Filtered(filter, 10, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(list) != test.want {
+				t.Fatalf("want %d matches for %q, got %d", test.want, test.query, len(list))
+			}
+		})
+	}
+}
+
 func TestFindByID(t *testing.T) {
 	db := openTestDB(t)
 	truncateTestTables(t, db)

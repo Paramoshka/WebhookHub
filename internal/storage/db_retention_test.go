@@ -86,7 +86,7 @@ func TestCleanupSkipsReplayLockAndQueuedWebhook(t *testing.T) {
 		t.Fatalf("queued webhook deleted: count=%d err=%v", deleted, err)
 	}
 	now := time.Now()
-	hooks, err := db.ClaimDeliverableWebhooks(1, now, now.Add(time.Minute))
+	hooks, err := db.ClaimDeliverableWebhooks(context.Background(), 1, now, now.Add(time.Minute))
 	if err != nil || len(hooks) != 1 || hooks[0].ID != hook.ID {
 		t.Fatalf("replayed webhook cannot be claimed: hooks=%v err=%v", hooks, err)
 	}
@@ -114,7 +114,7 @@ func TestCleanupKeepsLockUntilDeletion(t *testing.T) {
 			t.Errorf("expected row lock conflict, got %v", err)
 		}
 		now := time.Now()
-		hooks, err := db.ClaimDeliverableWebhooks(1, now, now.Add(time.Minute))
+		hooks, err := db.ClaimDeliverableWebhooks(context.Background(), 1, now, now.Add(time.Minute))
 		if err != nil || len(hooks) != 0 {
 			t.Errorf("worker claimed cleanup candidate: hooks=%v err=%v", hooks, err)
 		}
@@ -130,13 +130,37 @@ func TestCleanupKeepsLockUntilDeletion(t *testing.T) {
 	}
 }
 
+func TestRetentionWorkerCleansUpOnStart(t *testing.T) {
+	db := openTestDB(t)
+	truncateTestTables(t, db)
+	hook := createRetentionHook(t, db, "success", time.Now().Add(-48*time.Hour))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	workers := StartRetentionWorker(ctx, db, 1, time.Hour, 10)
+	defer func() {
+		cancel()
+		workers.Wait()
+	}()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		if _, err := db.FindByID(int(hook.ID)); errors.Is(err, ErrNotFound) {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("expired webhook was not removed on worker start")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
 func createRetentionHook(t *testing.T, db *DB, status string, receivedAt time.Time) model.Webhook {
 	t.Helper()
 	hook := model.Webhook{Source: "retention", Status: status, ReceivedAt: receivedAt}
 	if err := db.Save(&hook); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.CreateDeliveryAttempt(&model.DeliveryAttempt{
+	if _, err := createAttemptFixture(db, &model.DeliveryAttempt{
 		WebhookID: hook.ID, Source: hook.Source, Status: "success", StartedAt: receivedAt,
 		ResponseBody: []byte("saved response"), ResponseHeaders: `{"Content-Type":["text/plain"]}`, ResponseCaptured: true,
 	}); err != nil {

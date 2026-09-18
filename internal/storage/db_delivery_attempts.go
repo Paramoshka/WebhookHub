@@ -3,7 +3,6 @@ package storage
 import (
 	"errors"
 	"sort"
-	"time"
 	"webhookhub/internal/model"
 
 	"gorm.io/gorm"
@@ -37,40 +36,6 @@ type sourceStatusCount struct {
 	Source string
 	Status string
 	Count  int64
-}
-
-func (d *DB) CreateDeliveryAttempt(attempt *model.DeliveryAttempt) (uint, error) {
-	if err := d.conn.Create(attempt).Error; err != nil {
-		return 0, err
-	}
-	return attempt.ID, nil
-}
-
-func (d *DB) FinishDeliveryAttempt(id uint, status string, response model.DeliveryResponse, errMsg string, durationMS int64) error {
-	completedAt := time.Now()
-	return d.conn.Transaction(func(tx *gorm.DB) error {
-		var attempt model.DeliveryAttempt
-		if err := tx.Select("id", "webhook_id").First(&attempt, id).Error; err != nil {
-			return err
-		}
-		if err := tx.Model(&attempt).Updates(map[string]any{
-			"status":             status,
-			"http_status":        response.HTTPStatus,
-			"error_message":      errMsg,
-			"duration_ms":        durationMS,
-			"completed_at":       &completedAt,
-			"response_body":      response.Body,
-			"response_headers":   response.Headers,
-			"response_captured":  response.Captured,
-			"response_truncated": response.Truncated,
-		}).Error; err != nil {
-			return err
-		}
-		if status == "skipped" {
-			return nil
-		}
-		return tx.Model(&model.Webhook{}).Where("id = ?", attempt.WebhookID).Update("response", response.Body).Error
-	})
 }
 
 func (d *DB) DeliveryAttemptsByWebhook(webhookID uint) ([]model.DeliveryAttempt, error) {

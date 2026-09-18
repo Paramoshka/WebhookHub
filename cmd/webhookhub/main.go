@@ -18,6 +18,7 @@ import (
 	"webhookhub/internal/forwarder"
 	"webhookhub/internal/handler"
 	"webhookhub/internal/storage"
+	"webhookhub/web"
 
 	"github.com/joho/godotenv"
 )
@@ -28,11 +29,13 @@ type appConfig struct {
 	AdminPassword      string
 	SessionKey         string
 	CookieSecure       bool
+	TrustProxyHeaders  bool
 	Port               int
 	MaxBodyBytes       int64
 	DeliveryWorkers    int
 	DeliveryPoll       time.Duration
 	DeliveryLease      time.Duration
+	DeliveryTimeout    time.Duration
 	ShutdownTimeout    time.Duration
 	RetentionEnabled   bool
 	RetentionDays      int
@@ -103,7 +106,7 @@ func run() error {
 		return fmt.Errorf("ensure admin user: %w", err)
 	}
 
-	auth, err := handler.NewAuth(config.SessionKey, config.CookieSecure)
+	auth, err := handler.NewAuth(config.SessionKey, config.CookieSecure, config.TrustProxyHeaders)
 	if err != nil {
 		return fmt.Errorf("initialize authentication: %w", err)
 	}
@@ -113,6 +116,7 @@ func run() error {
 		Count:         config.DeliveryWorkers,
 		PollInterval:  config.DeliveryPoll,
 		LeaseDuration: config.DeliveryLease,
+		Timeout:       config.DeliveryTimeout,
 	})
 	retentionWorkers := &sync.WaitGroup{}
 	if config.RetentionEnabled {
@@ -171,7 +175,7 @@ func run() error {
 
 func routes(db *storage.DB, auth *handler.Auth, maxBodyBytes int64) http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
+	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(web.Static)))
 	mux.HandleFunc("GET /healthz", handler.Health())
 	mux.HandleFunc("GET /readyz", handler.Ready(db))
 	mux.HandleFunc("GET /login", auth.Login(db))
@@ -205,7 +209,16 @@ func routes(db *storage.DB, auth *handler.Auth, maxBodyBytes int64) http.Handler
 	mux.HandleFunc("POST /forwarding/delete", protectedMutation(handler.DeleteForwardingRule(db)))
 	mux.HandleFunc("POST /logout", protectedMutation(auth.Logout()))
 
-	return mux
+	return securityHeaders(mux)
+}
+
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "same-origin")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func loadConfig() (appConfig, error) {
@@ -252,6 +265,9 @@ func loadConfig() (appConfig, error) {
 	if config.CookieSecure, err = boolEnv("COOKIE_SECURE", false); err != nil {
 		return config, err
 	}
+	if config.TrustProxyHeaders, err = boolEnv("TRUST_PROXY_HEADERS", false); err != nil {
+		return config, err
+	}
 	if config.Port, err = positiveIntEnv("PORT", 8080); err != nil || config.Port > 65535 {
 		return config, errors.New("PORT must be an integer from 1 to 65535")
 	}
@@ -269,6 +285,12 @@ func loadConfig() (appConfig, error) {
 	}
 	if config.DeliveryLease < 10*time.Second {
 		return config, errors.New("DELIVERY_LEASE_DURATION must be at least 10s")
+	}
+	if config.DeliveryTimeout, err = positiveDurationEnv("DELIVERY_TIMEOUT", forwarder.DefaultDeliveryTimeout); err != nil {
+		return config, err
+	}
+	if config.DeliveryTimeout > config.DeliveryLease-forwarder.DeliveryFinalizationReserve {
+		return config, errors.New("DELIVERY_TIMEOUT must leave at least 5s before DELIVERY_LEASE_DURATION")
 	}
 	if config.ShutdownTimeout, err = positiveDurationEnv("SHUTDOWN_TIMEOUT", 10*time.Second); err != nil {
 		return config, err

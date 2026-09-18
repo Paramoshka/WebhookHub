@@ -24,6 +24,7 @@ type DB struct {
 }
 
 var (
+	ErrLeaseLost         = errors.New("delivery lease lost")
 	ErrNotFound          = errors.New("not found")
 	ErrWebhookProcessing = errors.New("webhook delivery is in progress")
 )
@@ -171,87 +172,6 @@ func (d *DB) ResetWebhookDeliveryState(id int) error {
 			"dead_letter_reason":   "",
 		}).Error
 	})
-}
-
-func (d *DB) MarkWebhookDeliverySuccess(id int) error {
-	return d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(map[string]any{
-		"status":               "success",
-		"failure_count":        0,
-		"last_error":           "",
-		"next_retry_at":        nil,
-		"delivery_lease_until": nil,
-		"dead_lettered_at":     nil,
-		"dead_letter_reason":   "",
-	}).Error
-}
-
-func (d *DB) MarkWebhookDeliverySkipped(id int) error {
-	return d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(map[string]any{
-		"status":               "skipped",
-		"failure_count":        0,
-		"last_error":           "",
-		"next_retry_at":        nil,
-		"delivery_lease_until": nil,
-		"dead_lettered_at":     nil,
-		"dead_letter_reason":   "",
-	}).Error
-}
-
-func (d *DB) MarkWebhookDeliveryFailed(id int, reason string, maxFailures int) (string, error) {
-	var webhook model.Webhook
-	if err := d.conn.First(&webhook, id).Error; err != nil {
-		return "failed", err
-	}
-
-	nextFailureCount := webhook.FailureCount + 1
-	updates := map[string]any{
-		"failure_count":        nextFailureCount,
-		"delivery_lease_until": nil,
-	}
-
-	status := "failed"
-	if nextFailureCount >= maxFailures {
-		now := time.Now()
-		status = "dead_lettered"
-		updates["status"] = status
-		updates["last_error"] = reason
-		updates["next_retry_at"] = nil
-		updates["dead_lettered_at"] = &now
-		updates["dead_letter_reason"] = reason
-	} else {
-		updates["status"] = status
-		updates["last_error"] = reason
-		updates["next_retry_at"] = nil
-		updates["dead_lettered_at"] = nil
-		updates["dead_letter_reason"] = ""
-	}
-
-	if err := d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(updates).Error; err != nil {
-		return "failed", err
-	}
-
-	return status, nil
-}
-
-func (d *DB) MarkWebhookRetryScheduled(id int, failureCount int, reason string, nextRetryAt time.Time) error {
-	return d.conn.Model(&model.Webhook{}).Where("id = ?", id).Updates(map[string]any{
-		"status":               "retrying",
-		"failure_count":        failureCount,
-		"last_error":           reason,
-		"next_retry_at":        &nextRetryAt,
-		"delivery_lease_until": nil,
-		"dead_lettered_at":     nil,
-		"dead_letter_reason":   "",
-	}).Error
-}
-
-func (d *DB) ReleaseWebhookLease(id int) error {
-	return d.conn.Model(&model.Webhook{}).
-		Where("id = ? AND status = ?", id, "processing").
-		Updates(map[string]any{
-			"status":               "pending",
-			"delivery_lease_until": nil,
-		}).Error
 }
 
 func (d *DB) DeleteWebhook(id int) error {
