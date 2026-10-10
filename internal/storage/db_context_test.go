@@ -17,7 +17,6 @@ func TestStorageHonorsCancelledContext(t *testing.T) {
 	cancel()
 	operations := map[string]func() error{
 		"save":        func() error { return db.Save(ctx, &model.Webhook{Source: "cancelled"}) },
-		"all":         func() error { _, err := db.All(ctx); return err },
 		"find":        func() error { _, err := db.FindByID(ctx, 1); return err },
 		"replay":      func() error { return db.ResetWebhookDeliveryState(ctx, 1) },
 		"delete":      func() error { return db.DeleteWebhook(ctx, 1) },

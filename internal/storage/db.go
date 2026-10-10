@@ -136,12 +136,6 @@ func (d *DB) Save(ctx context.Context, h *model.Webhook) error {
 	return d.conn.WithContext(ctx).Create(h).Error
 }
 
-func (d *DB) All(ctx context.Context) ([]model.Webhook, error) {
-	var list []model.Webhook
-	err := d.conn.WithContext(ctx).Order("id desc").Find(&list).Error
-	return list, err
-}
-
 func (d *DB) FindByID(ctx context.Context, id int) (model.Webhook, error) {
 	var h model.Webhook
 	err := d.conn.WithContext(ctx).Where("id = ?", id).First(&h).Error

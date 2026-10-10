@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -87,18 +88,61 @@ func ReceiveWebhook(db *storage.DB, maxBodyBytes int64) http.HandlerFunc {
 	}
 }
 
-func ListWebhooks(db *storage.DB) http.HandlerFunc {
+type webhookAPIStore interface {
+	Filtered(context.Context, storage.WebhookFilter, int, int) ([]model.Webhook, error)
+}
+
+func ListWebhooks(db webhookAPIStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		hooks, err := db.All(r.Context())
+		page, limit, err := parseWebhookPagination(r.URL.Query())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		filter, _ := parseWebhookFilterAndPage(r)
+		hooks, err := db.Filtered(r.Context(), filter, limit+1, (page-1)*limit)
 		if err != nil {
 			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
 			return
+		}
+		if len(hooks) > limit {
+			hooks = hooks[:limit]
+			query := r.URL.Query()
+			query.Set("page", strconv.Itoa(page+1))
+			query.Set("limit", strconv.Itoa(limit))
+			next := url.URL{Path: "/api/webhooks", RawQuery: query.Encode()}
+			w.Header().Set("Link", fmt.Sprintf(`<%s>; rel="next"`, next.String()))
+		}
+		if hooks == nil {
+			hooks = []model.Webhook{}
 		}
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(hooks); err != nil {
 			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		}
 	}
+}
+
+func parseWebhookPagination(query url.Values) (int, int, error) {
+	page, limit := 1, 20
+	var err error
+	if raw := query.Get("limit"); raw != "" {
+		limit, err = strconv.Atoi(raw)
+		if err != nil || limit < 1 || limit > 100 {
+			return 0, 0, errors.New("limit must be an integer from 1 to 100")
+		}
+	}
+	if raw := query.Get("page"); raw != "" {
+		page, err = strconv.Atoi(raw)
+		if err != nil || page < 1 {
+			return 0, 0, errors.New("page must be a positive integer")
+		}
+	}
+	// Leave room for the extra row and for advancing to the next page.
+	if page > (math.MaxInt-1)/limit {
+		return 0, 0, errors.New("page is too large")
+	}
+	return page, limit, nil
 }
 
 func ReplayWebhook(db webhookMutationStore) http.HandlerFunc {
