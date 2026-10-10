@@ -14,7 +14,7 @@ import (
 
 type testListStore struct{ offset int }
 
-func (s *testListStore) Filtered(ctx context.Context, _ storage.WebhookFilter, _, offset int) ([]model.Webhook, error) {
+func (s *testListStore) FilteredSummary(ctx context.Context, _ storage.WebhookFilter, _, offset int) ([]model.Webhook, error) {
 	s.offset = offset
 	return []model.Webhook{{ID: 42, Source: "test"}}, nil
 }

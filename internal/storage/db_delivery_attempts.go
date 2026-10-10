@@ -56,38 +56,23 @@ func (d *DB) DeliveryAttemptByID(ctx context.Context, webhookID, attemptID uint)
 
 func (d *DB) DeliveryMetrics(ctx context.Context) (DeliveryMetrics, error) {
 	metrics := DeliveryMetrics{}
-
-	if err := d.conn.WithContext(ctx).Model(&model.Webhook{}).Count(&metrics.TotalWebhooks).Error; err != nil {
-		return metrics, err
-	}
-	if err := d.conn.WithContext(ctx).Model(&model.DeliveryAttempt{}).Count(&metrics.TotalAttempts).Error; err != nil {
-		return metrics, err
-	}
-	if err := d.conn.WithContext(ctx).Model(&model.DeliveryAttempt{}).Where("status = ?", "success").Count(&metrics.SuccessCount).Error; err != nil {
-		return metrics, err
-	}
-	if err := d.conn.WithContext(ctx).Model(&model.DeliveryAttempt{}).Where("status = ?", "failed").Count(&metrics.FailedCount).Error; err != nil {
-		return metrics, err
-	}
-	if err := d.conn.WithContext(ctx).Model(&model.DeliveryAttempt{}).Where("status = ?", "pending").Count(&metrics.PendingCount).Error; err != nil {
-		return metrics, err
-	}
-	if err := d.conn.WithContext(ctx).Model(&model.DeliveryAttempt{}).Where("status = ?", "skipped").Count(&metrics.SkippedCount).Error; err != nil {
-		return metrics, err
-	}
-	if err := d.conn.WithContext(ctx).Model(&model.Webhook{}).Where("status = ?", "dead_lettered").Count(&metrics.DeadLetterCount).Error; err != nil {
-		return metrics, err
+	var counts struct {
+		TotalWebhooks   int64
+		DeadLetterCount int64
 	}
 
-	completedAttempts := metrics.SuccessCount + metrics.FailedCount
-	if completedAttempts > 0 {
-		metrics.SuccessRate = float64(metrics.SuccessCount) * 100 / float64(completedAttempts)
+	if err := d.conn.WithContext(ctx).Model(&model.Webhook{}).
+		Select("count(*) AS total_webhooks, count(*) FILTER (WHERE status = ?) AS dead_letter_count", "dead_lettered").
+		Scan(&counts).Error; err != nil {
+		return metrics, err
 	}
+	metrics.TotalWebhooks = counts.TotalWebhooks
+	metrics.DeadLetterCount = counts.DeadLetterCount
 
 	if err := d.conn.WithContext(ctx).Omit("response_body", "response_headers").Where("status = ?", "failed").Order("started_at desc").Limit(5).Find(&metrics.RecentFailures).Error; err != nil {
 		return metrics, err
 	}
-	if err := d.conn.WithContext(ctx).Where("status = ?", "dead_lettered").Order("dead_lettered_at desc").Limit(10).Find(&metrics.RecentDeadLetters).Error; err != nil {
+	if err := d.conn.WithContext(ctx).Omit("payload", "headers", "response").Where("status = ?", "dead_lettered").Order("dead_lettered_at desc").Limit(10).Find(&metrics.RecentDeadLetters).Error; err != nil {
 		return metrics, err
 	}
 
@@ -107,17 +92,27 @@ func (d *DB) DeliveryMetrics(ctx context.Context) (DeliveryMetrics, error) {
 			bySource[row.Source] = item
 		}
 
+		metrics.TotalAttempts += row.Count
 		item.Attempts += row.Count
 		switch row.Status {
 		case "success":
+			metrics.SuccessCount += row.Count
 			item.Success += row.Count
 		case "failed":
+			metrics.FailedCount += row.Count
 			item.Failed += row.Count
 		case "pending":
+			metrics.PendingCount += row.Count
 			item.Pending += row.Count
 		case "skipped":
+			metrics.SkippedCount += row.Count
 			item.Skipped += row.Count
 		}
+	}
+
+	completedAttempts := metrics.SuccessCount + metrics.FailedCount
+	if completedAttempts > 0 {
+		metrics.SuccessRate = float64(metrics.SuccessCount) * 100 / float64(completedAttempts)
 	}
 
 	for _, item := range bySource {

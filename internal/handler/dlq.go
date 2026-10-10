@@ -36,7 +36,7 @@ func DLQUI(db *storage.DB) http.HandlerFunc {
 		pageSize := 20
 		offset := (page - 1) * pageSize
 
-		webhooks, err := db.Filtered(r.Context(), query, pageSize, offset)
+		webhooks, err := db.FilteredSummary(r.Context(), query, pageSize, offset)
 		if err != nil {
 			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
 			return

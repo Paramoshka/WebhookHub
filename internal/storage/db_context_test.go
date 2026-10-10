@@ -26,6 +26,7 @@ func TestStorageHonorsCancelledContext(t *testing.T) {
 		"delete rule": func() error { return db.DeleteForwardingRule(ctx, "cancelled") },
 		"find user":   func() error { _, err := db.FindUserByEmail(ctx, "cancelled@example.com"); return err },
 		"filter":      func() error { _, err := db.Filtered(ctx, WebhookFilter{}, 10, 0); return err },
+		"summary":     func() error { _, err := db.FilteredSummary(ctx, WebhookFilter{}, 10, 0); return err },
 		"count":       func() error { _, err := db.CountFiltered(ctx, WebhookFilter{}); return err },
 		"attempts":    func() error { _, err := db.DeliveryAttemptsByWebhook(ctx, 1); return err },
 		"attempt":     func() error { _, err := db.DeliveryAttemptByID(ctx, 1, 1); return err },

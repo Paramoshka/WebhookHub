@@ -35,7 +35,7 @@ type WebhookPageData struct {
 }
 
 type webhookListStore interface {
-	Filtered(context.Context, storage.WebhookFilter, int, int) ([]model.Webhook, error)
+	FilteredSummary(context.Context, storage.WebhookFilter, int, int) ([]model.Webhook, error)
 	CountFiltered(context.Context, storage.WebhookFilter) (int, error)
 }
 
@@ -44,7 +44,7 @@ func WebhookPartial(db webhookListStore) http.HandlerFunc {
 		filter, page := parseWebhookFilterAndPage(r)
 		offset := (page - 1) * webhookPageSize
 
-		hooks, err := db.Filtered(r.Context(), filter, webhookPageSize, offset)
+		hooks, err := db.FilteredSummary(r.Context(), filter, webhookPageSize, offset)
 		if err != nil {
 			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
 			return

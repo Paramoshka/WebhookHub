@@ -149,3 +149,40 @@ func TestFilterDateBoundaries(t *testing.T) {
 		t.Fatal("incorrect date boundaries")
 	}
 }
+
+func TestFilteredSummaryPreservesSearchAndPagination(t *testing.T) {
+	db := openTestDB(t)
+	truncateTestTables(t, db)
+	ctx := context.Background()
+	now := time.Now()
+	hooks := []model.Webhook{
+		{Source: "summary", Payload: []byte("needle in payload"), Headers: "headers"},
+		{Source: "summary", Payload: []byte("payload"), Headers: "needle in headers"},
+		{Source: "summary", Payload: []byte("payload"), Headers: "headers", LastError: "needle in error"},
+	}
+	for i := range hooks {
+		hooks[i].Status, hooks[i].ReceivedAt, hooks[i].Response = "dead_lettered", now, []byte("response")
+		if err := db.Save(ctx, &hooks[i]); err != nil {
+			t.Fatal(err)
+		}
+	}
+	filter := WebhookFilter{Source: "summary", Status: "dead_lettered", Query: "needle", Sort: "received_asc"}
+	for offset := 0; offset < 3; offset++ {
+		list, err := db.FilteredSummary(ctx, filter, 1, offset)
+		if err != nil || len(list) != 1 || list[0].ID != hooks[offset].ID {
+			t.Fatalf("offset=%d list=%+v err=%v", offset, list, err)
+		}
+		if len(list[0].Payload) != 0 || len(list[0].Response) != 0 || list[0].Headers != "" || list[0].Source != "summary" || list[0].Status != "dead_lettered" {
+			t.Fatalf("unexpected summary: %+v", list[0])
+		}
+	}
+	filter.Sort = "received_desc"
+	list, err := db.FilteredSummary(ctx, filter, 2, 0)
+	if err != nil || len(list) != 2 || list[0].ID != hooks[2].ID || list[1].ID != hooks[1].ID {
+		t.Fatalf("unstable descending sort: %+v, %v", list, err)
+	}
+	full, err := db.Filtered(ctx, filter, 3, 0)
+	if err != nil || len(full) != 3 || len(full[0].Payload) == 0 || full[0].Headers == "" || string(full[0].Response) != "response" {
+		t.Fatalf("full records lost content: %+v, %v", full, err)
+	}
+}

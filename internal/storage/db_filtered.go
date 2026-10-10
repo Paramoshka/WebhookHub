@@ -43,6 +43,14 @@ func (d *DB) Filtered(ctx context.Context, filter WebhookFilter, limit, offset i
 	return list, err
 }
 
+func (d *DB) FilteredSummary(ctx context.Context, filter WebhookFilter, limit, offset int) ([]model.Webhook, error) {
+	var list []model.Webhook
+	query := d.applyWebhookFilter(d.conn.WithContext(ctx).Model(&model.Webhook{}), filter)
+	query = d.applyWebhookSort(query, filter.Sort)
+	err := query.Omit("payload", "headers", "response").Limit(limit).Offset(offset).Find(&list).Error
+	return list, err
+}
+
 func (d *DB) CountFiltered(ctx context.Context, filter WebhookFilter) (int, error) {
 	var count int64
 
@@ -85,9 +93,9 @@ func (d *DB) applyWebhookSort(query *gorm.DB, sort string) *gorm.DB {
 	case "id_asc":
 		return query.Order("id ASC")
 	case "received_asc":
-		return query.Order("received_at ASC")
+		return query.Order("received_at ASC, id ASC")
 	case "received_desc":
-		return query.Order("received_at DESC")
+		return query.Order("received_at DESC, id DESC")
 	case "id_desc":
 		return query.Order("id DESC")
 	default:
