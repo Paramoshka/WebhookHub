@@ -63,6 +63,38 @@ func TestForwardRejectsCorruptStoredHeaders(t *testing.T) {
 	}
 }
 
+func TestDeliveryAcceptsOnly2xxAndDoesNotFollowRedirects(t *testing.T) {
+	for _, code := range []int{200, 201, 204, 299, 300, 301, 302, 303, 304, 307, 308, 399, 400, 500} {
+		t.Run(fmt.Sprint(code), func(t *testing.T) {
+			calls := 0
+			client := *deliveryClient
+			client.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+				calls++
+				if calls != 1 || r.URL.Host != "original.example" || r.Method != http.MethodPost {
+					t.Fatal("delivery followed a redirect or changed the method")
+				}
+				body, err := io.ReadAll(r.Body)
+				if err != nil || string(body) != "payload" {
+					t.Fatalf("request body: %q, err=%v", body, err)
+				}
+				if err := hmacsig.VerifyHeader("secret", r.Header.Get(hmacsig.OutgoingHeader), body, time.Now(), time.Minute); err != nil {
+					t.Fatal(err)
+				}
+				return &http.Response{StatusCode: code, Header: http.Header{"Location": {"https://other.example/hook"}}, Body: io.NopCloser(strings.NewReader("original response"))}, nil
+			})
+			response, message, success := performDeliveryAttemptWithClient(context.Background(), &client,
+				model.ForwardingRule{Target: "https://original.example/hook", OutgoingSecret: "secret"}, &model.Webhook{Payload: []byte("payload")}, DefaultDeliveryTimeout)
+			wantSuccess := code >= 200 && code < 300
+			if success != wantSuccess || (message == "") != wantSuccess || calls != 1 {
+				t.Fatalf("code=%d success=%v message=%q calls=%d", code, success, message, calls)
+			}
+			if !response.Captured || response.HTTPStatus != code || string(response.Body) != "original response" || !strings.Contains(response.Headers, "other.example") {
+				t.Fatalf("original response not saved: %+v", response)
+			}
+		})
+	}
+}
+
 func TestDeliveryResponseCapture(t *testing.T) {
 	for _, size := range []int{0, int(maxBody) - 1, int(maxBody), int(maxBody) + 1} {
 		t.Run(fmt.Sprint(size), func(t *testing.T) {

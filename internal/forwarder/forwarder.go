@@ -21,7 +21,11 @@ const DeliveryFinalizationReserve = 5 * time.Second
 
 // deliveryClient has no client-level timeout: every attempt gets its own
 // deadline from the configured delivery timeout.
-var deliveryClient = &http.Client{}
+var deliveryClient = &http.Client{
+	CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	},
+}
 
 const maxBody = int64(1 << 20)
 const DefaultMaxAttempts = 3
@@ -208,7 +212,7 @@ func performDeliveryAttemptWithClient(parent context.Context, client *http.Clien
 		return response, errMsg, false
 	}
 
-	if resp.StatusCode >= 400 {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		errMsg := fmt.Sprintf("target responded with status %d", resp.StatusCode)
 		log.Printf("❌ Forwarding failed with status %d: %s\n", resp.StatusCode, rule.Target)
 		return response, errMsg, false
