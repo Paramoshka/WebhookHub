@@ -24,7 +24,7 @@ type EditForwardingData struct {
 
 func ForwardingUI(db *storage.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		rules, err := db.GetForwardingRules()
+		rules, err := db.GetForwardingRules(r.Context())
 		if err != nil {
 			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
 			return
@@ -47,7 +47,7 @@ func SaveForwardingRule(db *storage.DB) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if err := db.SaveForwardingRule(rule); err != nil {
+		if err := db.SaveForwardingRule(r.Context(), rule); err != nil {
 			http.Error(w, "Failed to save forwarding rule", http.StatusServiceUnavailable)
 			return
 		}
@@ -104,7 +104,7 @@ func UpdateForwardingRule(db *storage.DB) http.HandlerFunc {
 			return
 		}
 
-		if err := db.SaveForwardingRule(rule); err != nil {
+		if err := db.SaveForwardingRule(r.Context(), rule); err != nil {
 			http.Error(w, "Failed to update forwarding rule", http.StatusServiceUnavailable)
 			return
 		}
@@ -122,7 +122,7 @@ func DeleteForwardingRule(db *storage.DB) http.HandlerFunc {
 
 		source := r.FormValue("source")
 		if source != "" {
-			if err := db.DeleteForwardingRule(source); err != nil {
+			if err := db.DeleteForwardingRule(r.Context(), source); err != nil {
 				http.Error(w, "Failed to delete forwarding rule", http.StatusServiceUnavailable)
 				return
 			}

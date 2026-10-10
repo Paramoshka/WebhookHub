@@ -9,8 +9,8 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func (d *DB) SaveForwardingRule(rule model.ForwardingRule) error {
-	return d.conn.
+func (d *DB) SaveForwardingRule(ctx context.Context, rule model.ForwardingRule) error {
+	return d.conn.WithContext(ctx).
 		Clauses(
 			clause.OnConflict{
 				Columns:   []clause.Column{{Name: "source"}},
@@ -20,9 +20,9 @@ func (d *DB) SaveForwardingRule(rule model.ForwardingRule) error {
 		Create(&rule).Error
 }
 
-func (d *DB) GetForwardingRules() ([]model.ForwardingRule, error) {
+func (d *DB) GetForwardingRules(ctx context.Context) ([]model.ForwardingRule, error) {
 	var rules []model.ForwardingRule
-	err := d.conn.Order("source asc").Find(&rules).Error
+	err := d.conn.WithContext(ctx).Order("source asc").Find(&rules).Error
 	return rules, err
 }
 

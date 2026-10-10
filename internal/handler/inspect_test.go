@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"errors"
 	"net/http"
@@ -26,7 +27,7 @@ type testAttemptStore struct {
 	webhookID, attemptID uint
 }
 
-func (s *testAttemptStore) DeliveryAttemptByID(webhookID, attemptID uint) (model.DeliveryAttempt, error) {
+func (s *testAttemptStore) DeliveryAttemptByID(ctx context.Context, webhookID, attemptID uint) (model.DeliveryAttempt, error) {
 	s.webhookID, s.attemptID = webhookID, attemptID
 	return s.attempt, s.err
 }
@@ -75,11 +76,11 @@ func TestInspectDeliveryAttempt(t *testing.T) {
 	}
 }
 
-func (s testInspectStore) FindByID(int) (model.Webhook, error) {
+func (s testInspectStore) FindByID(context.Context, int) (model.Webhook, error) {
 	return s.webhook, s.findErr
 }
 
-func (s testInspectStore) DeliveryAttemptsByWebhook(uint) ([]model.DeliveryAttempt, error) {
+func (s testInspectStore) DeliveryAttemptsByWebhook(context.Context, uint) ([]model.DeliveryAttempt, error) {
 	return nil, s.attemptsErr
 }
 

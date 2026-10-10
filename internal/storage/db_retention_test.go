@@ -19,7 +19,7 @@ func TestCleanupExpiredWebhooks(t *testing.T) {
 		createRetentionHook(t, db, status, now.Add(-48*time.Hour))
 	}
 	createRetentionHook(t, db, "success", now)
-	deleted, err := db.CleanupExpiredWebhooks(now.Add(-24*time.Hour), 2)
+	deleted, err := db.CleanupExpiredWebhooks(context.Background(), now.Add(-24*time.Hour), 2)
 	if err != nil || deleted != 4 {
 		t.Fatalf("expected 4 deletions across batches, got %d, err=%v", deleted, err)
 	}
@@ -47,14 +47,14 @@ func TestCleanupRollsBackAttemptsOnDeleteFailure(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	deleted, err := db.CleanupExpiredWebhooks(time.Now(), 2)
+	deleted, err := db.CleanupExpiredWebhooks(context.Background(), time.Now(), 2)
 	if !errors.Is(err, injected) || deleted != 0 {
 		t.Fatalf("expected rollback, got deleted=%d err=%v", deleted, err)
 	}
-	if _, err := db.FindByID(int(hook.ID)); err != nil {
+	if _, err := db.FindByID(context.Background(), int(hook.ID)); err != nil {
 		t.Fatal(err)
 	}
-	attempts, err := db.DeliveryAttemptsByWebhook(hook.ID)
+	attempts, err := db.DeliveryAttemptsByWebhook(context.Background(), hook.ID)
 	if err != nil || len(attempts) != 1 {
 		t.Fatalf("attempt was not restored: count=%d err=%v", len(attempts), err)
 	}
@@ -72,16 +72,16 @@ func TestCleanupSkipsReplayLockAndQueuedWebhook(t *testing.T) {
 		if _, err := lockWebhook(tx, int(hook.ID)); err != nil {
 			return err
 		}
-		deleted, err := db.CleanupExpiredWebhooks(time.Now(), 2)
+		deleted, err := db.CleanupExpiredWebhooks(ctx, time.Now(), 2)
 		if err != nil || deleted != 0 {
 			t.Errorf("locked webhook deleted: count=%d err=%v", deleted, err)
 		}
-		return (&DB{conn: tx}).ResetWebhookDeliveryState(int(hook.ID))
+		return (&DB{conn: tx}).ResetWebhookDeliveryState(ctx, int(hook.ID))
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	deleted, err := db.CleanupExpiredWebhooks(time.Now(), 2)
+	deleted, err := db.CleanupExpiredWebhooks(ctx, time.Now(), 2)
 	if err != nil || deleted != 0 {
 		t.Fatalf("queued webhook deleted: count=%d err=%v", deleted, err)
 	}
@@ -121,11 +121,11 @@ func TestCleanupKeepsLockUntilDeletion(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	deleted, err := db.CleanupExpiredWebhooks(time.Now(), 2)
+	deleted, err := db.CleanupExpiredWebhooks(ctx, time.Now(), 2)
 	if err != nil || deleted != 1 || !checked {
 		t.Fatalf("expected checked deletion, got count=%d checked=%v err=%v", deleted, checked, err)
 	}
-	if err := db.ResetWebhookDeliveryState(int(hook.ID)); !errors.Is(err, ErrNotFound) {
+	if err := db.ResetWebhookDeliveryState(ctx, int(hook.ID)); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("expected replay after deletion to fail with not found, got %v", err)
 	}
 }
@@ -144,7 +144,7 @@ func TestRetentionWorkerCleansUpOnStart(t *testing.T) {
 
 	deadline := time.Now().Add(2 * time.Second)
 	for {
-		if _, err := db.FindByID(int(hook.ID)); errors.Is(err, ErrNotFound) {
+		if _, err := db.FindByID(context.Background(), int(hook.ID)); errors.Is(err, ErrNotFound) {
 			return
 		}
 		if time.Now().After(deadline) {
@@ -157,7 +157,7 @@ func TestRetentionWorkerCleansUpOnStart(t *testing.T) {
 func createRetentionHook(t *testing.T, db *DB, status string, receivedAt time.Time) model.Webhook {
 	t.Helper()
 	hook := model.Webhook{Source: "retention", Status: status, ReceivedAt: receivedAt}
-	if err := db.Save(&hook); err != nil {
+	if err := db.Save(context.Background(), &hook); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := createAttemptFixture(db, &model.DeliveryAttempt{

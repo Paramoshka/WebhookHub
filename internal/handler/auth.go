@@ -112,7 +112,7 @@ func (a *Auth) Login(db *storage.DB) http.HandlerFunc {
 
 		email := strings.TrimSpace(r.FormValue("username"))
 		password := r.FormValue("password")
-		user, err := db.FindUserByEmail(email)
+		user, err := db.FindUserByEmail(r.Context(), email)
 		switch {
 		case errors.Is(err, storage.ErrNotFound):
 			_ = bcrypt.CompareHashAndPassword(dummyPasswordHash, []byte(password))

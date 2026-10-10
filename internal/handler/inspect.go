@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -17,8 +18,8 @@ import (
 )
 
 type webhookInspectStore interface {
-	FindByID(int) (model.Webhook, error)
-	DeliveryAttemptsByWebhook(uint) ([]model.DeliveryAttempt, error)
+	FindByID(context.Context, int) (model.Webhook, error)
+	DeliveryAttemptsByWebhook(context.Context, uint) ([]model.DeliveryAttempt, error)
 }
 
 type InspectBody struct {
@@ -46,7 +47,7 @@ type InspectWebhookData struct {
 }
 
 type deliveryAttemptStore interface {
-	DeliveryAttemptByID(uint, uint) (model.DeliveryAttempt, error)
+	DeliveryAttemptByID(context.Context, uint, uint) (model.DeliveryAttempt, error)
 }
 
 func InspectDeliveryAttempt(db deliveryAttemptStore) http.HandlerFunc {
@@ -57,7 +58,7 @@ func InspectDeliveryAttempt(db deliveryAttemptStore) http.HandlerFunc {
 			http.Error(w, "Invalid ID", http.StatusBadRequest)
 			return
 		}
-		attempt, err := db.DeliveryAttemptByID(uint(webhookID), uint(attemptID))
+		attempt, err := db.DeliveryAttemptByID(r.Context(), uint(webhookID), uint(attemptID))
 		if errors.Is(err, storage.ErrNotFound) {
 			http.NotFound(w, r)
 			return
@@ -89,7 +90,7 @@ func InspectWebhook(db webhookInspectStore) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		data, err := inspectDeliveryData(db, webhook, CSRFToken(r))
+		data, err := inspectDeliveryData(r.Context(), db, webhook, CSRFToken(r))
 		if err != nil {
 			log.Printf("load webhook %d delivery attempts: %v", webhook.ID, err)
 			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
@@ -113,7 +114,7 @@ func InspectDeliveryPartial(db webhookInspectStore) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		data, err := inspectDeliveryData(db, webhook, CSRFToken(r))
+		data, err := inspectDeliveryData(r.Context(), db, webhook, CSRFToken(r))
 		if err != nil {
 			log.Printf("load webhook %d delivery attempts: %v", webhook.ID, err)
 			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
@@ -159,7 +160,7 @@ func findInspectWebhook(w http.ResponseWriter, r *http.Request, db webhookInspec
 		http.Error(w, "Invalid ID", http.StatusBadRequest)
 		return model.Webhook{}, false
 	}
-	webhook, err := db.FindByID(id)
+	webhook, err := db.FindByID(r.Context(), id)
 	if errors.Is(err, storage.ErrNotFound) {
 		http.NotFound(w, r)
 		return model.Webhook{}, false
@@ -172,8 +173,8 @@ func findInspectWebhook(w http.ResponseWriter, r *http.Request, db webhookInspec
 	return webhook, true
 }
 
-func inspectDeliveryData(db webhookInspectStore, webhook model.Webhook, csrfToken string) (InspectWebhookData, error) {
-	attempts, err := db.DeliveryAttemptsByWebhook(webhook.ID)
+func inspectDeliveryData(ctx context.Context, db webhookInspectStore, webhook model.Webhook, csrfToken string) (InspectWebhookData, error) {
+	attempts, err := db.DeliveryAttemptsByWebhook(ctx, webhook.ID)
 	if err != nil {
 		return InspectWebhookData{}, err
 	}

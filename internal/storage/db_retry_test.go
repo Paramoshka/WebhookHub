@@ -29,7 +29,7 @@ func TestClaimDeliverableWebhooks(t *testing.T) {
 		{Source: "complete", Status: "success", ReceivedAt: now},
 	}
 	for i := range webhooks {
-		if err := db.Save(&webhooks[i]); err != nil {
+		if err := db.Save(context.Background(), &webhooks[i]); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -90,7 +90,7 @@ func TestEnsureAdminUpdatesBootstrapPassword(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	user, err := db.FindUserByEmail("new-admin@example.com")
+	user, err := db.FindUserByEmail(context.Background(), "new-admin@example.com")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +110,7 @@ func TestWebhookMutationsRejectProcessingWebhook(t *testing.T) {
 		ReceivedAt:         time.Now(),
 		DeliveryLeaseUntil: &leaseUntil,
 	}
-	if err := db.Save(&webhook); err != nil {
+	if err := db.Save(context.Background(), &webhook); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := createAttemptFixture(db, &model.DeliveryAttempt{
@@ -122,10 +122,10 @@ func TestWebhookMutationsRejectProcessingWebhook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := db.ResetWebhookDeliveryState(int(webhook.ID)); !errors.Is(err, ErrWebhookProcessing) {
+	if err := db.ResetWebhookDeliveryState(context.Background(), int(webhook.ID)); !errors.Is(err, ErrWebhookProcessing) {
 		t.Fatalf("expected reset conflict, got %v", err)
 	}
-	if err := db.DeleteWebhook(int(webhook.ID)); !errors.Is(err, ErrWebhookProcessing) {
+	if err := db.DeleteWebhook(context.Background(), int(webhook.ID)); !errors.Is(err, ErrWebhookProcessing) {
 		t.Fatalf("expected delete conflict, got %v", err)
 	}
 
@@ -136,7 +136,7 @@ func TestWebhookMutationsRejectProcessingWebhook(t *testing.T) {
 	if stored.Status != "processing" || stored.DeliveryLeaseUntil == nil {
 		t.Fatalf("processing webhook was changed: %+v", stored)
 	}
-	attempts, err := db.DeliveryAttemptsByWebhook(webhook.ID)
+	attempts, err := db.DeliveryAttemptsByWebhook(context.Background(), webhook.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,11 +158,11 @@ func TestWebhookMutationsAllowInactiveWebhook(t *testing.T) {
 		LastError:    "temporary failure",
 		NextRetryAt:  &nextRetryAt,
 	}
-	if err := db.Save(&webhook); err != nil {
+	if err := db.Save(context.Background(), &webhook); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := db.ResetWebhookDeliveryState(int(webhook.ID)); err != nil {
+	if err := db.ResetWebhookDeliveryState(context.Background(), int(webhook.ID)); err != nil {
 		t.Fatal(err)
 	}
 	var reset model.Webhook
@@ -173,10 +173,10 @@ func TestWebhookMutationsAllowInactiveWebhook(t *testing.T) {
 		t.Fatalf("unexpected reset state: %+v", reset)
 	}
 
-	if err := db.DeleteWebhook(int(webhook.ID)); err != nil {
+	if err := db.DeleteWebhook(context.Background(), int(webhook.ID)); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.DeleteWebhook(int(webhook.ID)); !errors.Is(err, ErrNotFound) {
+	if err := db.DeleteWebhook(context.Background(), int(webhook.ID)); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("expected deleted webhook to be missing, got %v", err)
 	}
 }

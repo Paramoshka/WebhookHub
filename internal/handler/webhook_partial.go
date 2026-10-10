@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"math"
 	"net/http"
 	"net/url"
@@ -34,8 +35,8 @@ type WebhookPageData struct {
 }
 
 type webhookListStore interface {
-	Filtered(storage.WebhookFilter, int, int) ([]model.Webhook, error)
-	CountFiltered(storage.WebhookFilter) (int, error)
+	Filtered(context.Context, storage.WebhookFilter, int, int) ([]model.Webhook, error)
+	CountFiltered(context.Context, storage.WebhookFilter) (int, error)
 }
 
 func WebhookPartial(db webhookListStore) http.HandlerFunc {
@@ -43,12 +44,12 @@ func WebhookPartial(db webhookListStore) http.HandlerFunc {
 		filter, page := parseWebhookFilterAndPage(r)
 		offset := (page - 1) * webhookPageSize
 
-		hooks, err := db.Filtered(filter, webhookPageSize, offset)
+		hooks, err := db.Filtered(r.Context(), filter, webhookPageSize, offset)
 		if err != nil {
 			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		total, err := db.CountFiltered(filter)
+		total, err := db.CountFiltered(r.Context(), filter)
 		if err != nil {
 			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
 			return

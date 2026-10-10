@@ -132,27 +132,27 @@ func (d *DB) Close() error {
 	return sqlDB.Close()
 }
 
-func (d *DB) Save(h *model.Webhook) error {
-	return d.conn.Create(h).Error
+func (d *DB) Save(ctx context.Context, h *model.Webhook) error {
+	return d.conn.WithContext(ctx).Create(h).Error
 }
 
-func (d *DB) All() ([]model.Webhook, error) {
+func (d *DB) All(ctx context.Context) ([]model.Webhook, error) {
 	var list []model.Webhook
-	err := d.conn.Order("id desc").Find(&list).Error
+	err := d.conn.WithContext(ctx).Order("id desc").Find(&list).Error
 	return list, err
 }
 
-func (d *DB) FindByID(id int) (model.Webhook, error) {
+func (d *DB) FindByID(ctx context.Context, id int) (model.Webhook, error) {
 	var h model.Webhook
-	err := d.conn.Where("id = ?", id).First(&h).Error
+	err := d.conn.WithContext(ctx).Where("id = ?", id).First(&h).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return model.Webhook{}, ErrNotFound
 	}
 	return h, err
 }
 
-func (d *DB) ResetWebhookDeliveryState(id int) error {
-	return d.conn.Transaction(func(tx *gorm.DB) error {
+func (d *DB) ResetWebhookDeliveryState(ctx context.Context, id int) error {
+	return d.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		webhook, err := lockWebhook(tx, id)
 		if err != nil {
 			return err
@@ -174,8 +174,8 @@ func (d *DB) ResetWebhookDeliveryState(id int) error {
 	})
 }
 
-func (d *DB) DeleteWebhook(id int) error {
-	return d.conn.Transaction(func(tx *gorm.DB) error {
+func (d *DB) DeleteWebhook(ctx context.Context, id int) error {
+	return d.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		webhook, err := lockWebhook(tx, id)
 		if err != nil {
 			return err
@@ -203,6 +203,6 @@ func lockWebhook(tx *gorm.DB, id int) (model.Webhook, error) {
 	return webhook, err
 }
 
-func (d *DB) DeleteForwardingRule(source string) error {
-	return d.conn.Where("source = ?", source).Delete(&model.ForwardingRule{}).Error
+func (d *DB) DeleteForwardingRule(ctx context.Context, source string) error {
+	return d.conn.WithContext(ctx).Where("source = ?", source).Delete(&model.ForwardingRule{}).Error
 }

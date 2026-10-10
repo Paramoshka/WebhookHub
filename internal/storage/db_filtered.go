@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"strings"
 	"time"
 	"webhookhub/internal/model"
@@ -29,10 +30,10 @@ func initPayloadSearch(db *gorm.DB) error {
 		$$`).Error
 }
 
-func (d *DB) Filtered(filter WebhookFilter, limit, offset int) ([]model.Webhook, error) {
+func (d *DB) Filtered(ctx context.Context, filter WebhookFilter, limit, offset int) ([]model.Webhook, error) {
 	var list []model.Webhook
 
-	query := d.applyWebhookFilter(d.conn.Model(&model.Webhook{}), filter)
+	query := d.applyWebhookFilter(d.conn.WithContext(ctx).Model(&model.Webhook{}), filter)
 	query = d.applyWebhookSort(query, filter.Sort)
 	err := query.
 		Limit(limit).
@@ -42,10 +43,10 @@ func (d *DB) Filtered(filter WebhookFilter, limit, offset int) ([]model.Webhook,
 	return list, err
 }
 
-func (d *DB) CountFiltered(filter WebhookFilter) (int, error) {
+func (d *DB) CountFiltered(ctx context.Context, filter WebhookFilter) (int, error) {
 	var count int64
 
-	query := d.applyWebhookFilter(d.conn.Model(&model.Webhook{}), filter)
+	query := d.applyWebhookFilter(d.conn.WithContext(ctx).Model(&model.Webhook{}), filter)
 	err := query.Count(&count).Error
 	return int(count), err
 }

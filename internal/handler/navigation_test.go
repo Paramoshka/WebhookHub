@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"html"
 	"net/http/httptest"
 	"net/url"
@@ -13,11 +14,13 @@ import (
 
 type testListStore struct{ offset int }
 
-func (s *testListStore) Filtered(_ storage.WebhookFilter, _, offset int) ([]model.Webhook, error) {
+func (s *testListStore) Filtered(ctx context.Context, _ storage.WebhookFilter, _, offset int) ([]model.Webhook, error) {
 	s.offset = offset
 	return []model.Webhook{{ID: 42, Source: "test"}}, nil
 }
-func (*testListStore) CountFiltered(storage.WebhookFilter) (int, error) { return 40, nil }
+func (*testListStore) CountFiltered(context.Context, storage.WebhookFilter) (int, error) {
+	return 40, nil
+}
 
 func TestDashboardRestoresPageAndFilters(t *testing.T) {
 	values := url.Values{"page": {"3"}, "source": {"test"}, "q": {"a&b + Привет"}}

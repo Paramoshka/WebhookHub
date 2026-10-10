@@ -24,7 +24,7 @@ func StartRetentionWorker(ctx context.Context, db *DB, retentionDays int, interv
 
 	cleanup := func() {
 		cutoff := time.Now().AddDate(0, 0, -retentionDays)
-		deleted, err := db.CleanupExpiredWebhooks(cutoff, batchSize)
+		deleted, err := db.CleanupExpiredWebhooks(ctx, cutoff, batchSize)
 		if err != nil {
 			log.Printf("cleanup expired webhooks failed: %v", err)
 			return
@@ -54,7 +54,7 @@ func StartRetentionWorker(ctx context.Context, db *DB, retentionDays int, interv
 	return wg
 }
 
-func (d *DB) CleanupExpiredWebhooks(before time.Time, batchSize int) (int64, error) {
+func (d *DB) CleanupExpiredWebhooks(ctx context.Context, before time.Time, batchSize int) (int64, error) {
 	if batchSize <= 0 {
 		batchSize = 300
 	}
@@ -62,8 +62,11 @@ func (d *DB) CleanupExpiredWebhooks(before time.Time, batchSize int) (int64, err
 	var totalDeleted int64
 
 	for {
+		if err := ctx.Err(); err != nil {
+			return totalDeleted, err
+		}
 		var ids []uint
-		err := d.conn.Transaction(func(tx *gorm.DB) error {
+		err := d.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 			if err := tx.Model(&model.Webhook{}).
 				Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
 				Where("received_at < ? AND status NOT IN ?", before, []string{"pending", "processing", "retrying"}).

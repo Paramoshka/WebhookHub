@@ -15,7 +15,7 @@ import (
 
 func newDeliveryClaim(t *testing.T, db *DB) model.Webhook {
 	t.Helper()
-	if err := db.Save(&model.Webhook{Source: "delivery", Status: "pending", ReceivedAt: time.Now()}); err != nil {
+	if err := db.Save(context.Background(), &model.Webhook{Source: "delivery", Status: "pending", ReceivedAt: time.Now()}); err != nil {
 		t.Fatal(err)
 	}
 	return claimTestWebhook(t, db)
@@ -46,7 +46,7 @@ func TestDeliveryRejectsPreviousLeaseOwner(t *testing.T) {
 			t.Fatalf("stale %s: %v", status, err)
 		}
 	}
-	interrupted, err := db.DeliveryAttemptByID(old.ID, attemptID)
+	interrupted, err := db.DeliveryAttemptByID(context.Background(), old.ID, attemptID)
 	if err != nil || interrupted.Status != "interrupted" || len(interrupted.ResponseBody) != 0 {
 		t.Fatalf("stale worker changed interrupted attempt: %+v %v", interrupted, err)
 	}
@@ -60,11 +60,11 @@ func TestDeliveryRejectsPreviousLeaseOwner(t *testing.T) {
 	if err := db.FinishDelivery(context.Background(), &old, attemptID, DeliveryResult{Status: "cancelled"}); !errors.Is(err, ErrLeaseLost) {
 		t.Fatalf("old cancellation: %v", err)
 	}
-	stored, err := db.FindByID(int(old.ID))
+	stored, err := db.FindByID(context.Background(), int(old.ID))
 	if err != nil || stored.Status != "success" || string(stored.Response) != "fresh" || stored.DeliveryLeaseUntil != nil {
 		t.Fatalf("new owner result corrupted: %+v %v", stored, err)
 	}
-	if err := db.ResetWebhookDeliveryState(int(old.ID)); err != nil {
+	if err := db.ResetWebhookDeliveryState(context.Background(), int(old.ID)); err != nil {
 		t.Fatal(err)
 	}
 	replay := claimTestWebhook(t, db)
@@ -101,11 +101,11 @@ func TestDeliveryResultsAreAtomic(t *testing.T) {
 			if err := db.FinishDelivery(context.Background(), &claim, id, result); err != nil {
 				t.Fatal(err)
 			}
-			stored, err := db.FindByID(int(claim.ID))
+			stored, err := db.FindByID(context.Background(), int(claim.ID))
 			if err != nil || stored.Status != tt.want || stored.FailureCount != tt.failures || stored.DeliveryLeaseUntil != nil {
 				t.Fatalf("wrong webhook: %+v %v", stored, err)
 			}
-			attempt, err := db.DeliveryAttemptByID(claim.ID, id)
+			attempt, err := db.DeliveryAttemptByID(context.Background(), claim.ID, id)
 			if err != nil || attempt.Status != tt.status || attempt.CompletedAt == nil {
 				t.Fatalf("wrong attempt: %+v %v", attempt, err)
 			}
@@ -150,7 +150,7 @@ func TestDeliveryRejectsExpiredAndCancelledOperations(t *testing.T) {
 func TestConcurrentWorkersClaimOnce(t *testing.T) {
 	db := openTestDB(t)
 	truncateTestTables(t, db)
-	if err := db.Save(&model.Webhook{Source: "concurrent", Status: "pending", ReceivedAt: time.Now()}); err != nil {
+	if err := db.Save(context.Background(), &model.Webhook{Source: "concurrent", Status: "pending", ReceivedAt: time.Now()}); err != nil {
 		t.Fatal(err)
 	}
 	var wg sync.WaitGroup
@@ -246,11 +246,11 @@ func TestDeliveryFinalizationDeadlineWhileWaitingForLock(t *testing.T) {
 	if err := tx.Rollback().Error; err != nil {
 		t.Fatal(err)
 	}
-	attempt, err := db.DeliveryAttemptByID(claim.ID, id)
+	attempt, err := db.DeliveryAttemptByID(context.Background(), claim.ID, id)
 	if err != nil || attempt.Status != "pending" {
 		t.Fatalf("timed-out transaction changed attempt: %+v %v", attempt, err)
 	}
-	hook, err := db.FindByID(int(claim.ID))
+	hook, err := db.FindByID(context.Background(), int(claim.ID))
 	if err != nil || hook.Status != "processing" {
 		t.Fatalf("timed-out transaction changed webhook: %+v %v", hook, err)
 	}

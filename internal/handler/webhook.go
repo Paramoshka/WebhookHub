@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,8 +20,8 @@ import (
 var sourcePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
 
 type webhookMutationStore interface {
-	ResetWebhookDeliveryState(int) error
-	DeleteWebhook(int) error
+	ResetWebhookDeliveryState(context.Context, int) error
+	DeleteWebhook(context.Context, int) error
 }
 
 func ReceiveWebhook(db *storage.DB, maxBodyBytes int64) http.HandlerFunc {
@@ -76,7 +77,7 @@ func ReceiveWebhook(db *storage.DB, maxBodyBytes int64) http.HandlerFunc {
 			Status:     "pending",
 		}
 
-		if err := db.Save(&webhook); err != nil {
+		if err := db.Save(r.Context(), &webhook); err != nil {
 			http.Error(w, "Failed to persist webhook", http.StatusServiceUnavailable)
 			return
 		}
@@ -88,7 +89,7 @@ func ReceiveWebhook(db *storage.DB, maxBodyBytes int64) http.HandlerFunc {
 
 func ListWebhooks(db *storage.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		hooks, err := db.All()
+		hooks, err := db.All(r.Context())
 		if err != nil {
 			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
 			return
@@ -108,7 +109,7 @@ func ReplayWebhook(db webhookMutationStore) http.HandlerFunc {
 			return
 		}
 
-		if err := db.ResetWebhookDeliveryState(id); err != nil {
+		if err := db.ResetWebhookDeliveryState(r.Context(), id); err != nil {
 			writeWebhookMutationError(w, err, "Failed to requeue webhook")
 			return
 		}
@@ -131,7 +132,7 @@ func DeleteWebhook(db webhookMutationStore) http.HandlerFunc {
 			return
 		}
 
-		if err := db.DeleteWebhook(id); err != nil {
+		if err := db.DeleteWebhook(r.Context(), id); err != nil {
 			writeWebhookMutationError(w, err, "Failed to delete webhook")
 			return
 		}

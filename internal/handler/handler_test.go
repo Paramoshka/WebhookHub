@@ -47,12 +47,12 @@ type testWebhookMutationStore struct {
 	deleteID  int
 }
 
-func (s *testWebhookMutationStore) ResetWebhookDeliveryState(id int) error {
+func (s *testWebhookMutationStore) ResetWebhookDeliveryState(ctx context.Context, id int) error {
 	s.resetID = id
 	return s.resetErr
 }
 
-func (s *testWebhookMutationStore) DeleteWebhook(id int) error {
+func (s *testWebhookMutationStore) DeleteWebhook(ctx context.Context, id int) error {
 	s.deleteID = id
 	return s.deleteErr
 }

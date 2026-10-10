@@ -33,7 +33,7 @@ type DeliveryMetricsData struct {
 
 func DeliveryMetricsPartial(db *storage.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		metrics, err := db.DeliveryMetrics()
+		metrics, err := db.DeliveryMetrics(r.Context())
 		if err != nil {
 			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
 			return

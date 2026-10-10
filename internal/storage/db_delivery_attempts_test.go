@@ -45,11 +45,11 @@ func TestAttemptResponsesSurviveReplay(t *testing.T) {
 	db := openTestDB(t)
 	truncateTestTables(t, db)
 	hook := model.Webhook{Source: "history", Status: "pending", ReceivedAt: time.Now()}
-	if err := db.Save(&hook); err != nil {
+	if err := db.Save(context.Background(), &hook); err != nil {
 		t.Fatal(err)
 	}
 	for _, code := range []int{500, 200} {
-		if err := db.ResetWebhookDeliveryState(int(hook.ID)); err != nil {
+		if err := db.ResetWebhookDeliveryState(context.Background(), int(hook.ID)); err != nil {
 			t.Fatal(err)
 		}
 		hook = claimTestWebhook(t, db)
@@ -62,14 +62,14 @@ func TestAttemptResponsesSurviveReplay(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := db.ResetWebhookDeliveryState(int(hook.ID)); err != nil {
+	if err := db.ResetWebhookDeliveryState(context.Background(), int(hook.ID)); err != nil {
 		t.Fatal(err)
 	}
-	current, err := db.FindByID(int(hook.ID))
+	current, err := db.FindByID(context.Background(), int(hook.ID))
 	if err != nil || len(current.Response) != 0 {
 		t.Fatalf("replay: %+v %v", current, err)
 	}
-	attempts, err := db.DeliveryAttemptsByWebhook(hook.ID)
+	attempts, err := db.DeliveryAttemptsByWebhook(context.Background(), hook.ID)
 	if err != nil || len(attempts) != 2 {
 		t.Fatalf("history: %+v %v", attempts, err)
 	}
@@ -77,18 +77,18 @@ func TestAttemptResponsesSurviveReplay(t *testing.T) {
 		if len(summary.ResponseBody) != 0 || summary.ResponseHeaders != "" {
 			t.Fatal("history list loads response contents")
 		}
-		attempt, err := db.DeliveryAttemptByID(hook.ID, summary.ID)
+		attempt, err := db.DeliveryAttemptByID(context.Background(), hook.ID, summary.ID)
 		if err != nil || !attempt.ResponseCaptured || len(attempt.ResponseBody) != 1 || attempt.ResponseHeaders == "" || attempt.ResponseTruncated != (attempt.HTTPStatus == 500) {
 			t.Fatalf("response missing: %+v %v", attempt, err)
 		}
 	}
-	if _, err := db.DeliveryAttemptByID(hook.ID+1, attempts[0].ID); !errors.Is(err, ErrNotFound) {
+	if _, err := db.DeliveryAttemptByID(context.Background(), hook.ID+1, attempts[0].ID); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("cross-webhook lookup: %v", err)
 	}
-	if err := db.DeleteWebhook(int(hook.ID)); err != nil {
+	if err := db.DeleteWebhook(context.Background(), int(hook.ID)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.DeliveryAttemptByID(hook.ID, attempts[0].ID); !errors.Is(err, ErrNotFound) {
+	if _, err := db.DeliveryAttemptByID(context.Background(), hook.ID, attempts[0].ID); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("orphaned response: %v", err)
 	}
 }
@@ -97,7 +97,7 @@ func TestFinishAttemptRollsBackOnWebhookUpdateFailure(t *testing.T) {
 	db := openTestDB(t)
 	truncateTestTables(t, db)
 	hook := model.Webhook{Source: "rollback", Status: "pending", ReceivedAt: time.Now()}
-	if err := db.Save(&hook); err != nil {
+	if err := db.Save(context.Background(), &hook); err != nil {
 		t.Fatal(err)
 	}
 	hook = claimTestWebhook(t, db)
@@ -116,11 +116,11 @@ func TestFinishAttemptRollsBackOnWebhookUpdateFailure(t *testing.T) {
 	if err := db.FinishDelivery(context.Background(), &hook, id, DeliveryResult{Status: "success", Response: model.DeliveryResponse{HTTPStatus: 200, Body: []byte("ok"), Captured: true}, DurationMS: 1}); err == nil {
 		t.Fatal("expected update failure")
 	}
-	attempt, err := db.DeliveryAttemptByID(hook.ID, id)
+	attempt, err := db.DeliveryAttemptByID(context.Background(), hook.ID, id)
 	if err != nil || attempt.Status != "pending" || attempt.ResponseCaptured {
 		t.Fatalf("attempt update did not roll back: %+v %v", attempt, err)
 	}
-	stored, err := db.FindByID(int(hook.ID))
+	stored, err := db.FindByID(context.Background(), int(hook.ID))
 	if err != nil || stored.Status != "processing" || stored.DeliveryLeaseUntil == nil || stored.DeliveryLeaseVersion != hook.DeliveryLeaseVersion {
 		t.Fatalf("webhook update did not roll back: %+v %v", stored, err)
 	}

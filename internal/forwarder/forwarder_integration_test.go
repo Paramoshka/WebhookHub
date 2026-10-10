@@ -71,7 +71,7 @@ func TestForwardFinalizesAllOutcomes(t *testing.T) {
 	for _, scenario := range []string{"success", "retry", "dead_letter", "cancelled", "skipped"} {
 		t.Run(scenario, func(t *testing.T) {
 			hook := model.Webhook{Source: scenario, Status: "pending", ReceivedAt: time.Now()}
-			if err := db.Save(&hook); err != nil {
+			if err := db.Save(context.Background(), &hook); err != nil {
 				t.Fatal(err)
 			}
 			if scenario != "skipped" {
@@ -79,7 +79,7 @@ func TestForwardFinalizesAllOutcomes(t *testing.T) {
 				if scenario == "dead_letter" {
 					attempts = 1
 				}
-				if err := db.SaveForwardingRule(model.ForwardingRule{Source: scenario, Target: "https://example.com", RetryMaxAttempts: attempts}); err != nil {
+				if err := db.SaveForwardingRule(context.Background(), model.ForwardingRule{Source: scenario, Target: "https://example.com", RetryMaxAttempts: attempts}); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -124,15 +124,15 @@ func TestForwardFinalizesAllOutcomes(t *testing.T) {
 			}
 			wantWebhook := map[string]string{"success": "success", "retry": "retrying", "dead_letter": "dead_lettered", "cancelled": "pending", "skipped": "skipped"}[scenario]
 			wantAttempt := map[string]string{"success": "success", "retry": "failed", "dead_letter": "failed", "cancelled": "cancelled", "skipped": "skipped"}[scenario]
-			stored, err := db.FindByID(int(hook.ID))
+			stored, err := db.FindByID(context.Background(), int(hook.ID))
 			if err != nil || stored.Status != wantWebhook || stored.DeliveryLeaseUntil != nil {
 				t.Fatalf("webhook: %+v %v", stored, err)
 			}
-			attempts, err := db.DeliveryAttemptsByWebhook(hook.ID)
+			attempts, err := db.DeliveryAttemptsByWebhook(context.Background(), hook.ID)
 			if err != nil || len(attempts) != 1 || attempts[0].Status != wantAttempt {
 				t.Fatalf("attempts: %+v %v", attempts, err)
 			}
-			if err := db.DeleteWebhook(int(hook.ID)); err != nil {
+			if err := db.DeleteWebhook(context.Background(), int(hook.ID)); err != nil {
 				t.Fatal(err)
 			}
 		})

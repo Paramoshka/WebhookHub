@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -22,7 +23,7 @@ func TestPayloadSearch(t *testing.T) {
 	for i := range hooks {
 		hooks[i].Status = "success"
 		hooks[i].ReceivedAt = time.Now()
-		if err := db.Save(&hooks[i]); err != nil {
+		if err := db.Save(context.Background(), &hooks[i]); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -43,11 +44,11 @@ func TestPayloadSearch(t *testing.T) {
 	} {
 		t.Run(test.query, func(t *testing.T) {
 			filter := WebhookFilter{Query: test.query}
-			list, err := db.Filtered(filter, 10, 0)
+			list, err := db.Filtered(context.Background(), filter, 10, 0)
 			if err != nil {
 				t.Fatal(err)
 			}
-			count, err := db.CountFiltered(filter)
+			count, err := db.CountFiltered(context.Background(), filter)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -57,7 +58,7 @@ func TestPayloadSearch(t *testing.T) {
 		})
 	}
 	for _, hook := range hooks {
-		stored, err := db.FindByID(int(hook.ID))
+		stored, err := db.FindByID(context.Background(), int(hook.ID))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -79,7 +80,7 @@ func TestPayloadSearchEscapesWildcards(t *testing.T) {
 	for i := range hooks {
 		hooks[i].Status = "success"
 		hooks[i].ReceivedAt = time.Now()
-		if err := db.Save(&hooks[i]); err != nil {
+		if err := db.Save(context.Background(), &hooks[i]); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -96,7 +97,7 @@ func TestPayloadSearchEscapesWildcards(t *testing.T) {
 	} {
 		t.Run(test.query, func(t *testing.T) {
 			filter := WebhookFilter{Query: test.query}
-			list, err := db.Filtered(filter, 10, 0)
+			list, err := db.Filtered(context.Background(), filter, 10, 0)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -111,15 +112,15 @@ func TestFindByID(t *testing.T) {
 	db := openTestDB(t)
 	truncateTestTables(t, db)
 	hook := model.Webhook{Source: "inspect", Status: "pending", ReceivedAt: time.Now()}
-	if err := db.Save(&hook); err != nil {
+	if err := db.Save(context.Background(), &hook); err != nil {
 		t.Fatal(err)
 	}
-	stored, err := db.FindByID(int(hook.ID))
+	stored, err := db.FindByID(context.Background(), int(hook.ID))
 	if err != nil || stored.ID != hook.ID {
 		t.Fatalf("expected webhook %d, got %+v, err=%v", hook.ID, stored, err)
 	}
 	for _, id := range []int{0, -1, int(hook.ID) + 1} {
-		if _, err := db.FindByID(id); !errors.Is(err, ErrNotFound) {
+		if _, err := db.FindByID(context.Background(), id); !errors.Is(err, ErrNotFound) {
 			t.Fatalf("id %d: expected not found, got %v", id, err)
 		}
 	}
@@ -131,16 +132,16 @@ func TestFilterDateBoundaries(t *testing.T) {
 	from := time.Date(2026, 9, 16, 0, 0, 0, 0, time.UTC)
 	to := from.AddDate(0, 0, 1)
 	for _, timestamp := range []time.Time{from.Add(-time.Microsecond), from, to.Add(-time.Microsecond), to} {
-		if err := db.Save(&model.Webhook{Source: "utc", Status: "success", ReceivedAt: timestamp}); err != nil {
+		if err := db.Save(context.Background(), &model.Webhook{Source: "utc", Status: "success", ReceivedAt: timestamp}); err != nil {
 			t.Fatal(err)
 		}
 	}
 	filter := WebhookFilter{Source: "utc", From: &from, To: &to, Sort: "received_asc"}
-	hooks, err := db.Filtered(filter, 10, 0)
+	hooks, err := db.Filtered(context.Background(), filter, 10, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	count, err := db.CountFiltered(filter)
+	count, err := db.CountFiltered(context.Background(), filter)
 	if err != nil || count != 2 || len(hooks) != 2 {
 		t.Fatalf("range [from,to): count=%d rows=%d err=%v", count, len(hooks), err)
 	}

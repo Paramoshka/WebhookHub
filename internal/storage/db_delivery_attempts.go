@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"errors"
 	"sort"
 	"webhookhub/internal/model"
@@ -38,43 +39,43 @@ type sourceStatusCount struct {
 	Count  int64
 }
 
-func (d *DB) DeliveryAttemptsByWebhook(webhookID uint) ([]model.DeliveryAttempt, error) {
+func (d *DB) DeliveryAttemptsByWebhook(ctx context.Context, webhookID uint) ([]model.DeliveryAttempt, error) {
 	var attempts []model.DeliveryAttempt
-	err := d.conn.Omit("response_body", "response_headers").Where("webhook_id = ?", webhookID).Order("id desc").Find(&attempts).Error
+	err := d.conn.WithContext(ctx).Omit("response_body", "response_headers").Where("webhook_id = ?", webhookID).Order("id desc").Find(&attempts).Error
 	return attempts, err
 }
 
-func (d *DB) DeliveryAttemptByID(webhookID, attemptID uint) (model.DeliveryAttempt, error) {
+func (d *DB) DeliveryAttemptByID(ctx context.Context, webhookID, attemptID uint) (model.DeliveryAttempt, error) {
 	var attempt model.DeliveryAttempt
-	err := d.conn.Where("webhook_id = ? AND id = ?", webhookID, attemptID).First(&attempt).Error
+	err := d.conn.WithContext(ctx).Where("webhook_id = ? AND id = ?", webhookID, attemptID).First(&attempt).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return attempt, ErrNotFound
 	}
 	return attempt, err
 }
 
-func (d *DB) DeliveryMetrics() (DeliveryMetrics, error) {
+func (d *DB) DeliveryMetrics(ctx context.Context) (DeliveryMetrics, error) {
 	metrics := DeliveryMetrics{}
 
-	if err := d.conn.Model(&model.Webhook{}).Count(&metrics.TotalWebhooks).Error; err != nil {
+	if err := d.conn.WithContext(ctx).Model(&model.Webhook{}).Count(&metrics.TotalWebhooks).Error; err != nil {
 		return metrics, err
 	}
-	if err := d.conn.Model(&model.DeliveryAttempt{}).Count(&metrics.TotalAttempts).Error; err != nil {
+	if err := d.conn.WithContext(ctx).Model(&model.DeliveryAttempt{}).Count(&metrics.TotalAttempts).Error; err != nil {
 		return metrics, err
 	}
-	if err := d.conn.Model(&model.DeliveryAttempt{}).Where("status = ?", "success").Count(&metrics.SuccessCount).Error; err != nil {
+	if err := d.conn.WithContext(ctx).Model(&model.DeliveryAttempt{}).Where("status = ?", "success").Count(&metrics.SuccessCount).Error; err != nil {
 		return metrics, err
 	}
-	if err := d.conn.Model(&model.DeliveryAttempt{}).Where("status = ?", "failed").Count(&metrics.FailedCount).Error; err != nil {
+	if err := d.conn.WithContext(ctx).Model(&model.DeliveryAttempt{}).Where("status = ?", "failed").Count(&metrics.FailedCount).Error; err != nil {
 		return metrics, err
 	}
-	if err := d.conn.Model(&model.DeliveryAttempt{}).Where("status = ?", "pending").Count(&metrics.PendingCount).Error; err != nil {
+	if err := d.conn.WithContext(ctx).Model(&model.DeliveryAttempt{}).Where("status = ?", "pending").Count(&metrics.PendingCount).Error; err != nil {
 		return metrics, err
 	}
-	if err := d.conn.Model(&model.DeliveryAttempt{}).Where("status = ?", "skipped").Count(&metrics.SkippedCount).Error; err != nil {
+	if err := d.conn.WithContext(ctx).Model(&model.DeliveryAttempt{}).Where("status = ?", "skipped").Count(&metrics.SkippedCount).Error; err != nil {
 		return metrics, err
 	}
-	if err := d.conn.Model(&model.Webhook{}).Where("status = ?", "dead_lettered").Count(&metrics.DeadLetterCount).Error; err != nil {
+	if err := d.conn.WithContext(ctx).Model(&model.Webhook{}).Where("status = ?", "dead_lettered").Count(&metrics.DeadLetterCount).Error; err != nil {
 		return metrics, err
 	}
 
@@ -83,15 +84,15 @@ func (d *DB) DeliveryMetrics() (DeliveryMetrics, error) {
 		metrics.SuccessRate = float64(metrics.SuccessCount) * 100 / float64(completedAttempts)
 	}
 
-	if err := d.conn.Omit("response_body", "response_headers").Where("status = ?", "failed").Order("started_at desc").Limit(5).Find(&metrics.RecentFailures).Error; err != nil {
+	if err := d.conn.WithContext(ctx).Omit("response_body", "response_headers").Where("status = ?", "failed").Order("started_at desc").Limit(5).Find(&metrics.RecentFailures).Error; err != nil {
 		return metrics, err
 	}
-	if err := d.conn.Where("status = ?", "dead_lettered").Order("dead_lettered_at desc").Limit(10).Find(&metrics.RecentDeadLetters).Error; err != nil {
+	if err := d.conn.WithContext(ctx).Where("status = ?", "dead_lettered").Order("dead_lettered_at desc").Limit(10).Find(&metrics.RecentDeadLetters).Error; err != nil {
 		return metrics, err
 	}
 
 	var rows []sourceStatusCount
-	if err := d.conn.Model(&model.DeliveryAttempt{}).
+	if err := d.conn.WithContext(ctx).Model(&model.DeliveryAttempt{}).
 		Select("source, status, count(*) as count").
 		Group("source, status").
 		Scan(&rows).Error; err != nil {
