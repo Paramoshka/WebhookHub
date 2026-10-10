@@ -18,10 +18,23 @@
     </div>
   </form>
 
+  {{if .BulkMessage}}<p role="status" aria-live="polite">{{.BulkMessage}}</p>{{end}}
   {{if .Webhooks}}
+  <form id="dlq-bulk-replay" method="POST" action="/api/webhooks/replay/bulk" class="dlq-bulk-controls">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <input type="hidden" name="redirect_to" value="{{.CurrentURL}}">
+    <label class="checkbox-row">
+      <input id="dlq-select-all" type="checkbox" disabled>
+      Select all on this page
+    </label>
+    <span id="dlq-selection-count" role="status" aria-atomic="true">0 webhooks selected.</span>
+    <button class="btn-primary" type="submit">Requeue selected</button>
+  </form>
+  <div class="dlq-table-wrap">
   <table class="data-table">
     <thead>
       <tr>
+        <th scope="col">Select</th>
         <th>Webhook</th>
         <th>Source</th>
         <th>Failures</th>
@@ -33,6 +46,7 @@
     <tbody>
       {{range .Webhooks}}
       <tr>
+        <td><label class="dlq-selection"><input type="checkbox" name="ids" value="{{.ID}}" form="dlq-bulk-replay" aria-label="Select webhook #{{.ID}}"></label></td>
         <td class="table-id">#{{.ID}}</td>
         <td><span class="source-badge">{{.Source}}</span></td>
         <td>{{.FailureCount}}</td>
@@ -55,6 +69,7 @@
       {{end}}
     </tbody>
   </table>
+  </div>
   {{else}}
   <div class="empty-state">
     <h3>Dead-letter queue is empty</h3>
@@ -68,4 +83,5 @@
     <a href="{{.NextURL}}" class="nav-link {{if .DisableNext}}is-disabled{{end}}">Next</a>
   </div>
 </section>
+<script src="/static/dlq.js" defer></script>
 {{end}}

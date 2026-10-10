@@ -689,6 +689,45 @@ button:focus-visible {
     margin-top: 0;
 }
 
+.dlq-bulk-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+    margin: 20px 0;
+}
+
+.dlq-bulk-controls .checkbox-row,
+.dlq-selection {
+    min-height: 44px;
+}
+
+.dlq-selection {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    cursor: pointer;
+}
+
+.dlq-selection input {
+    width: auto;
+    margin: 0;
+}
+
+.dlq-selection input,
+.dlq-bulk-controls input[type="checkbox"] {
+    accent-color: var(--accent);
+}
+
+.dlq-table-wrap {
+    overflow-x: auto;
+}
+
+.dlq-table-wrap .data-table {
+    min-width: 780px;
+}
+
 .empty-state {
     padding: 28px;
     border: 1px dashed rgba(157, 189, 255, 0.2);

@@ -155,17 +155,21 @@ func (d *DB) ResetWebhookDeliveryState(ctx context.Context, id int) error {
 			return ErrWebhookProcessing
 		}
 
-		return tx.Model(&webhook).Updates(map[string]any{
-			"status":               "pending",
-			"response":             []byte(nil),
-			"failure_count":        0,
-			"last_error":           "",
-			"next_retry_at":        nil,
-			"delivery_lease_until": nil,
-			"dead_lettered_at":     nil,
-			"dead_letter_reason":   "",
-		}).Error
+		return tx.Model(&webhook).Updates(replayUpdates()).Error
 	})
+}
+
+func replayUpdates() map[string]any {
+	return map[string]any{
+		"status":               "pending",
+		"response":             []byte(nil),
+		"failure_count":        0,
+		"last_error":           "",
+		"next_retry_at":        nil,
+		"delivery_lease_until": nil,
+		"dead_lettered_at":     nil,
+		"dead_letter_reason":   "",
+	}
 }
 
 func (d *DB) DeleteWebhook(ctx context.Context, id int) error {

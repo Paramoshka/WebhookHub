@@ -147,11 +147,51 @@ When upgrading from a version without lease ownership checks, stop all old worke
 Delivery is at-least-once. A database lease lets another worker recover a webhook left in `processing` after a crash. A duplicate remains possible if the target accepted a request but WebhookHub stopped before persisting the result.
 Replay and delete requests for a webhook currently in `processing` are rejected with HTTP `409 Conflict` so an active delivery cannot be changed underneath a worker.
 
+Only HTTP `2xx` responses count as successful delivery. Redirects are not followed:
+the original `3xx` response, including its headers and body, is saved as a failed
+attempt and uses the configured retry policy. Configure the final receiver URL
+directly; payloads and outgoing signatures are never sent to a redirect destination.
+
 Health endpoints:
 
 - `GET /healthz` reports that the process is running.
 - `GET /readyz` reports readiness only when PostgreSQL responds.
 - The container healthcheck runs `webhookhub healthcheck`, which checks `/readyz` without requiring shell utilities in the image.
+
+### Paginated JSON API
+
+`GET /api/webhooks` requires login and returns a JSON array with the existing event
+fields, including payload and response bytes. It accepts the same filters and sort
+options as the logs, plus `page` (default `1`) and `limit` (default `20`, range
+`1–100`). Invalid pagination values and offset overflow return `400`.
+
+When more events are available, the `Link` response header contains a relative
+next-page URL with `rel="next"`, preserving filters and page size. The final page
+has no next link; an empty page returns `[]`. The default sort is `id_desc`;
+time-based sorts use ID as a tie-breaker.
+
+**Upgrade note:** requests without pagination parameters now return only the first
+20 events. Clients that previously read the whole journal must follow the next
+links. Pages are live views: new events and deletions can shift subsequent pages.
+
+### Bulk recovery from DLQ
+
+On `/dlq`, select individual rows or **Select all on this page**, then choose
+**Requeue selected**. Selection covers at most the 20 events on the current page.
+After submission, the page keeps its filters and page number and reports how many
+events were queued and how many were skipped because they were deleted or had
+already left the DLQ. Queuing does not mean delivery has succeeded.
+
+`POST /api/webhooks/replay/bulk` requires login and CSRF protection. Submit a form
+with repeated positive `ids` values and optional `redirect_to` pointing to `/dlq`
+with its query parameters. The form is limited to 64 KiB and 20 unique IDs;
+duplicates count once. Empty or invalid selections return `400`.
+
+Eligible events are requeued in one transaction, keeping their attempt history.
+Events no longer in `dead_lettered` are skipped. Database errors roll back the
+transaction and return `503`; successful requests return `303` to the DLQ with
+the result counts. Reload the list before retrying after an ambiguous connection
+failure.
 
 ### Inspect a webhook
 
@@ -195,6 +235,12 @@ When enabled, expired webhooks are removed in batches every interval by `receive
 Active deliveries and queued retries are retained. Cleanup locks each batch before
 deleting it: a webhook successfully requeued first is retained; replay returns
 `404` if cleanup deleted the webhook first.
+
+HTTP database operations use the request context, so disconnecting the client
+cancels outstanding work. Retention uses its worker context and stops active
+queries and further batches during shutdown. Dashboard and DLQ lists load event
+metadata; full request and response contents remain available through Inspect and
+the JSON API.
 
 ### Advanced logs filters (UI and API)
 

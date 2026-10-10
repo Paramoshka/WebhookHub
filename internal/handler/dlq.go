@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -19,6 +21,7 @@ type DLQPageData struct {
 	DisablePrev bool
 	DisableNext bool
 	CSRFToken   string
+	BulkMessage string
 }
 
 func DLQUI(db *storage.DB) http.HandlerFunc {
@@ -58,6 +61,7 @@ func DLQUI(db *storage.DB) http.HandlerFunc {
 			DisablePrev: page <= 1,
 			DisableNext: page*pageSize >= total,
 			CSRFToken:   CSRFToken(r),
+			BulkMessage: bulkReplayMessage(r.URL.Query()),
 		}
 
 		if err := dlqTemplates.ExecuteTemplate(w, "base", data); err != nil {
@@ -68,7 +72,7 @@ func DLQUI(db *storage.DB) http.HandlerFunc {
 
 func parsePage(raw string) int {
 	page := 1
-	if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
+	if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 && parsed <= math.MaxInt/20 {
 		page = parsed
 	}
 	return page
@@ -81,7 +85,18 @@ func buildDLQPageURLWithFilters(values url.Values, page int) string {
 			filtered.Add(key, val)
 		}
 	}
+	filtered.Del("requeued")
+	filtered.Del("skipped")
 	filtered.Set("page", strconv.Itoa(page))
 
 	return "/dlq?" + filtered.Encode()
+}
+
+func bulkReplayMessage(query url.Values) string {
+	requeued, err := strconv.Atoi(query.Get("requeued"))
+	skipped, skippedErr := strconv.Atoi(query.Get("skipped"))
+	if err != nil || skippedErr != nil || requeued < 0 || skipped < 0 || requeued > storage.MaxBulkReplay || skipped > storage.MaxBulkReplay-requeued {
+		return ""
+	}
+	return fmt.Sprintf("Queued for delivery: %d. Skipped: %d (deleted or no longer in DLQ).", requeued, skipped)
 }

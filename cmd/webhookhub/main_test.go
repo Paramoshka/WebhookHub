@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/securecookie"
+
 	"webhookhub/internal/handler"
 )
 
@@ -78,6 +80,46 @@ func TestRoutesProtectInspect(t *testing.T) {
 		if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/login" {
 			t.Fatalf("%s must require login, got %d", path, response.Code)
 		}
+	}
+}
+
+func TestRoutesProtectAndLimitBulkReplay(t *testing.T) {
+	key := strings.Repeat("a", 32)
+	auth, err := handler.NewAuth(key, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := securecookie.New([]byte(key), nil).Encode("session", struct{ User, CSRFToken string }{"admin@example.com", "token"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name, method, body   string
+		loggedIn, headerCSRF bool
+		want                 int
+	}{
+		{"requires login", "POST", "ids=1", false, false, 303},
+		{"requires POST", "GET", "", true, false, 405},
+		{"requires CSRF", "POST", "ids=1", true, false, 403},
+		{"rejects empty selection", "POST", "csrf_token=token", true, false, 400},
+		{"limits body before form CSRF", "POST", "csrf_token=token&ids=1&padding=" + strings.Repeat("a", handler.MaxBulkReplayBodyBytes), true, false, 400},
+		{"limits body with header CSRF", "POST", "ids=1&padding=" + strings.Repeat("a", handler.MaxBulkReplayBodyBytes), true, true, 400},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			r := httptest.NewRequest(test.method, "/api/webhooks/replay/bulk", strings.NewReader(test.body))
+			r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			if test.loggedIn {
+				r.AddCookie(&http.Cookie{Name: "session", Value: session})
+			}
+			if test.headerCSRF {
+				r.Header.Set("X-CSRF-Token", "token")
+			}
+			w := httptest.NewRecorder()
+			routes(nil, auth, 1024).ServeHTTP(w, r)
+			if w.Code != test.want {
+				t.Fatalf("code=%d want=%d", w.Code, test.want)
+			}
+		})
 	}
 }
 
