@@ -96,19 +96,13 @@ WebhookHub provides a simple, developer-friendly solution to these problems.
 git clone https://github.com/Paramoshka/WebhookHub.git
 cd webhookhub
 cp .env.sample .env
-# Fill every required value in .env before starting the service.
-docker-compose up -d --build
+# Fill every required value in .env before starting the service, see configuration
 ```
 
-### 🔐 Generate Session Key
-
-WebhookHub uses a 32-byte secret key to sign session cookies.  
-You must set this in your `.env` file as `SESSION_KEY`.
-
-To generate a secure random key:
+## Bring up the container
 
 ```bash
-openssl rand -hex 32
+docker compose up -d --build
 ```
 
 ## ⚙️ Configuration
