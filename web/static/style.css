@@ -133,7 +133,7 @@ p {
     min-width: 0;
 }
 
-#timezone-select,
+select:not([multiple]),
 #timezone-picker {
     appearance: none;
     padding-right: 3rem;
@@ -293,6 +293,14 @@ p {
 .nav-link.is-disabled {
     pointer-events: none;
     opacity: 0.45;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 24px;
 }
 
 .container {
@@ -479,7 +487,7 @@ textarea {
     padding: 0.8rem 0.95rem;
     border: 1px solid rgba(157, 189, 255, 0.18);
     border-radius: 14px;
-    background: rgba(4, 13, 22, 0.7);
+    background-color: rgba(4, 13, 22, 0.7);
     color: var(--text);
     outline: none;
     transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
@@ -613,6 +621,8 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 .date-picker-trigger svg {
     width: 22px;
     height: 22px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .date-picker-grid {
@@ -697,7 +707,7 @@ select:focus,
 textarea:focus {
     border-color: rgba(92, 200, 255, 0.52);
     box-shadow: 0 0 0 4px rgba(92, 200, 255, 0.12);
-    background: rgba(4, 13, 22, 0.92);
+    background-color: rgba(4, 13, 22, 0.92);
 }
 
 input[disabled] {
@@ -1055,6 +1065,10 @@ button:focus-visible {
 
 .empty-state p {
     margin-bottom: 0;
+}
+
+.dlq-panel .empty-state {
+    margin-top: 24px;
 }
 
 .login-page {
