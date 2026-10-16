@@ -79,6 +79,7 @@
       const text = `${zone} · ${dateParts(new Date()).timeZoneName.replace("GMT", "UTC")}`;
       if (current.textContent !== text) current.textContent = text;
     }
+    window.WebhookHubTimezonePicker?.refresh();
     formatTimes(document);
     for (const label of document.querySelectorAll("[data-timezone-label]")) label.textContent = zone;
     const form = document.getElementById("filter-form");

@@ -260,7 +260,11 @@ Query params:
 - `page`: page number (default `1`), 10 items per page.
 
 The **Timezone** selector in the header defaults to **Browser timezone** and offers
-UTC and named timezones. The choice is saved in this browser's local storage and
+UTC and named timezones. Search by city or timezone name, for example `Moscow`,
+`new york`, or `Asia/Tokyo`; matching ignores case. Arrow keys and Enter select
+a result, and Escape closes the list without changing the current timezone.
+Browsers without the Popover API use a native select instead of the searchable
+popup. The choice is saved in this browser's local storage and
 applies to timestamps throughout the UI and the **From / To** controls. Timestamps
 show seconds and their UTC offset; hovering also reveals the timezone and original
 UTC value. Without JavaScript, rendered timestamps and date inputs remain in UTC.

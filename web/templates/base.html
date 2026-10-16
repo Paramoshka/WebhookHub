@@ -7,6 +7,7 @@
   <title>{{block "title" .}}WebhookHub{{end}}</title>
   <script src="/static/htmx.min.js"></script>
   <script src="/static/timezone.js" defer></script>
+  <script src="/static/timezone-picker.js" defer></script>
   <script src="/static/date-picker.js" defer></script>
   <link rel="stylesheet" href="/static/style.css">
 </head>
@@ -28,11 +29,17 @@
   </nav>
 
   <div class="timezone-control">
-    <label for="timezone-select">Timezone</label>
+    <label id="timezone-label" for="timezone-select">Timezone</label>
     <select id="timezone-select" aria-describedby="timezone-current" disabled>
       <option value="UTC">UTC</option>
     </select>
+    <button id="timezone-picker" class="timezone-picker" type="button" aria-haspopup="dialog" aria-controls="timezone-popup" aria-expanded="false" aria-labelledby="timezone-label timezone-choice" aria-describedby="timezone-current" hidden><span id="timezone-choice">UTC</span></button>
     <span id="timezone-current" class="timezone-current" aria-live="polite">UTC</span>
+    <div id="timezone-popup" class="timezone-popup" popover="auto" role="dialog" aria-label="Choose timezone">
+      <input id="timezone-search" type="search" role="combobox" aria-label="Search timezones" placeholder="Search city or timezone…" autocomplete="off" spellcheck="false" aria-autocomplete="list" aria-controls="timezone-options" aria-expanded="false">
+      <ul id="timezone-options" class="timezone-options" role="listbox" aria-label="Timezones"></ul>
+      <p id="timezone-empty" class="timezone-empty" role="status" hidden>No matching timezones. Try a city or region.</p>
+    </div>
   </div>
 
   <form action="/logout" method="POST">
