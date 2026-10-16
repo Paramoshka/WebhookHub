@@ -350,7 +350,8 @@ p {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.fields > label {
+.fields > label,
+.fields > .date-filter {
     min-width: 0;
     overflow-wrap: anywhere;
 }
@@ -405,6 +406,191 @@ input[type="datetime-local"]::-webkit-datetime-edit {
 input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     padding: 0.2rem;
     cursor: pointer;
+}
+
+.date-picker-field {
+    position: relative;
+}
+
+.has-calendar input[type="datetime-local"] {
+    padding-right: 3.25rem;
+}
+
+.has-calendar input::-webkit-calendar-picker-indicator {
+    display: none;
+}
+
+.date-picker-trigger {
+    position: absolute;
+    inset: 0.35rem 0.35rem 0 auto;
+    width: 40px;
+    height: 40px;
+    margin: auto 0;
+    padding: 9px;
+    border-radius: 10px;
+    color: var(--muted);
+    background: transparent;
+}
+
+.date-picker-trigger:hover,
+.date-picker-trigger:focus-visible {
+    color: var(--heading);
+    background: var(--accent-soft);
+    transform: none;
+}
+
+.date-picker-trigger:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+.date-picker {
+    --picker-text: #172033;
+    --picker-muted: #596579;
+    --picker-accent: #2563eb;
+    --picker-hover: #edf3fc;
+    display: none;
+    position: fixed;
+    inset: auto;
+    width: min(22rem, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px);
+    overflow: auto;
+    margin: 0;
+    padding: 16px;
+    border: 0;
+    border-radius: 16px;
+    background: #ffffff;
+    color: var(--picker-text);
+    color-scheme: light;
+    box-shadow: 0 18px 56px rgba(0, 0, 0, 0.28);
+}
+
+.date-picker:popover-open {
+    display: block;
+}
+
+.date-picker .date-picker-context {
+    margin: 0 0 8px;
+    color: var(--picker-muted);
+    font-size: 0.8rem;
+    overflow-wrap: anywhere;
+}
+
+.date-picker-header {
+    display: grid;
+    grid-template-columns: 40px 1fr 40px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.date-picker h3 {
+    color: var(--picker-text);
+    font-size: 1rem;
+    text-align: center;
+}
+
+.date-picker button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--picker-text);
+    transform: none;
+}
+
+.date-picker button:hover {
+    background: var(--picker-hover);
+}
+
+.date-picker button:focus-visible,
+.date-picker input:focus-visible {
+    outline: 2px solid var(--picker-accent);
+    outline-offset: 2px;
+}
+
+.date-picker button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.date-picker svg,
+.date-picker-trigger svg {
+    width: 22px;
+    height: 22px;
+}
+
+.date-picker-grid {
+    width: 100%;
+    table-layout: fixed;
+    border-spacing: 0 2px;
+    font-variant-numeric: tabular-nums;
+}
+
+.date-picker-grid th {
+    height: 32px;
+    color: var(--picker-muted);
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-align: center;
+}
+
+.date-picker-grid td {
+    padding: 0 2px;
+}
+
+.date-picker-grid button {
+    width: 100%;
+    font-size: 0.9rem;
+}
+
+.date-picker-grid .date-picker-adjacent {
+    color: var(--picker-muted);
+}
+
+.date-picker-grid [aria-current="date"] {
+    box-shadow: inset 0 0 0 1px var(--picker-accent);
+}
+
+.date-picker-grid [aria-selected="true"] button {
+    background: var(--picker-accent);
+    color: #ffffff;
+}
+
+.date-picker .date-picker-time-label {
+    margin-top: 12px;
+    color: var(--picker-muted);
+    font-size: 0.8rem;
+}
+
+.date-picker input[type="time"] {
+    width: 100%;
+    min-height: 44px;
+    margin-top: 6px;
+    padding: 8px 12px;
+    border: 1px solid #d7deea;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: var(--picker-text);
+    box-shadow: none;
+}
+
+.date-picker-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.date-picker-actions button {
+    padding: 0 18px;
+}
+
+.date-picker-actions [data-calendar-action="done"] {
+    background: var(--picker-accent);
+    color: #ffffff;
 }
 
 input::placeholder,

@@ -273,6 +273,13 @@ exact RFC3339 UTC bounds into navigation links, so shared links, pagination, and
 automatic refresh keep the same interval regardless of the viewer's timezone.
 Reapplying unchanged date fields preserves the original fractional seconds.
 
+The calendar buttons beside **From / To** open a white, rounded date-and-time
+picker. Choose a day and time, then **Done**; **Clear** removes the bound. Escape
+or clicking outside dismisses unconfirmed changes. Arrow keys navigate days,
+Page Up/Down change months, and Shift + Page Up/Down change years. Browsers
+without the Popover API keep their native calendar; manual date input works in
+either case.
+
 Existing URLs without `tz` or an explicit offset still mean UTC, independent of
 the server timezone. RFC3339 values with an explicit offset always keep their
 original instant. Invalid dates, unknown timezones, and clock times skipped or

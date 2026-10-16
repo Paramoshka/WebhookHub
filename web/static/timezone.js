@@ -95,7 +95,7 @@
   }
 
   setTimezone();
-  window.WebhookHubTimezone = { formatTime };
+  window.WebhookHubTimezone = { formatTime, currentDateTime: () => inputValue(new Date()) };
 
   document.addEventListener("change", (event) => {
     if (event.target.id !== "timezone-select") return;
