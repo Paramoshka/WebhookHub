@@ -7,7 +7,7 @@
   <p class="lead">Review webhook deliveries that exhausted their retry policy, inspect the last error, and requeue or delete them intentionally.</p>
 </section>
 
-<section class="panel">
+<section class="panel dlq-panel">
   <form method="GET" action="/dlq" class="rule-form">
     <div class="section">
       <div class="section-title">Filter</div>
@@ -50,7 +50,7 @@
         <td class="table-id">#{{.ID}}</td>
         <td><span class="source-badge">{{.Source}}</span></td>
         <td>{{.FailureCount}}</td>
-        <td>{{if .DeadLetteredAt}}{{.DeadLetteredAt}}{{else}}-{{end}}</td>
+        <td>{{if .DeadLetteredAt}}<time data-local-time datetime="{{.DeadLetteredAt.UTC.Format "2006-01-02T15:04:05.999999999Z07:00"}}">{{.DeadLetteredAt.UTC.Format "2006-01-02 15:04:05 UTC"}}</time>{{else}}-{{end}}</td>
         <td class="wrap-text">{{if .DeadLetterReason}}{{.DeadLetterReason}}{{else}}-{{end}}</td>
         <td>
           <div class="action-buttons">

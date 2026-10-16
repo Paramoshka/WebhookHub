@@ -106,6 +106,8 @@ func TestWebhookAPIFiltersAndDatabaseError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	query.Set("from", "2026-10-01T00:00:00Z")
+	query.Set("to", "2026-10-03T00:00:00Z")
 	for key, values := range query {
 		if next.Query().Get(key) != values[0] {
 			t.Fatalf("next link lost %s", key)

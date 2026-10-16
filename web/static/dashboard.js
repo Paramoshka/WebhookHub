@@ -6,6 +6,7 @@
   let paused = false;
   let actionPending = false;
   const requests = new Map();
+  const responses = new Map();
   const cancelled = new WeakSet();
   const actionMessage = page.querySelector("#dashboard-action-message");
 
@@ -65,7 +66,17 @@
   });
 
   page.addEventListener("htmx:beforeSwap", (event) => {
-    if (cancelled.has(event.detail.xhr)) event.preventDefault();
+    if (cancelled.has(event.detail.xhr)) {
+      event.preventDefault();
+      return;
+    }
+    const request = requests.get(event.detail.xhr);
+    if (!request || request.kind === "action" || !event.detail.shouldSwap) return;
+    if (request.background && responses.get(request.kind) === event.detail.serverResponse) {
+      event.detail.shouldSwap = false;
+      return;
+    }
+    responses.set(request.kind, event.detail.serverResponse);
   });
 
   page.addEventListener("htmx:afterRequest", (event) => {
@@ -91,6 +102,10 @@
     }
 
     const message = page.querySelector(`#${request.kind}-refresh-message`);
+    if (!request.background && request.kind === "logs" && xhr.status === 400) {
+      message.textContent = "";
+      return;
+    }
     message.className = successful ? "" : "inspect-error";
     message.textContent = successful ? "" : "Could not refresh. Displayed data may be out of date. Check the connection and try again.";
     if (successful) {
@@ -98,6 +113,7 @@
       const now = new Date();
       time.dateTime = now.toISOString();
       time.textContent = now.toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC");
+      window.WebhookHubTimezone?.formatTime(time);
     }
   });
 })();

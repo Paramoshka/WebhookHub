@@ -30,7 +30,10 @@ func TestInspectWebhookRejectsInvalidID(t *testing.T) {
 
 func TestWebhookPageRejectsOverflow(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/partials/webhooks?page="+strconv.Itoa(math.MaxInt), nil)
-	_, page := parseWebhookFilterAndPage(request)
+	_, page, err := parseWebhookFilterAndPage(request)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if page != 1 {
 		t.Fatalf("expected fallback page 1, got %d", page)
 	}

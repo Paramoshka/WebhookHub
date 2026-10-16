@@ -1,7 +1,7 @@
-<div id="webhooks-table" hx-get="{{.CurrentURL}}" hx-trigger="every 5s, refresh" hx-swap="outerHTML" hx-sync="#filter-form:drop">
+<div id="webhooks-table" data-filter-from="{{.FromInstant}}" data-filter-to="{{.ToInstant}}" hx-get="{{.CurrentURL}}" hx-trigger="every 5s, refresh" hx-swap="outerHTML" hx-sync="#filter-form:drop">
 {{template "partials.html" .}}
 
-<div class="pagination" style="margin-top: 18px; display: flex; align-items: center; gap: 12px;">
+<div class="pagination">
   {{if .DisablePrev}}
   <span class="nav-link is-disabled" aria-disabled="true">Prev</span>
   {{else}}

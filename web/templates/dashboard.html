@@ -11,7 +11,7 @@
   <p id="dashboard-action-message" role="status" aria-live="polite"></p>
 </section>
 
-<p class="helper-text">Metrics last updated: <time id="metrics-updated">Not yet loaded</time></p>
+<p class="helper-text">Metrics last updated: <time id="metrics-updated" data-local-time>Not yet loaded</time></p>
 <p id="metrics-refresh-message" role="status" aria-live="polite"></p>
 <div id="delivery-metrics" hx-get="/partials/metrics" hx-trigger="load, every 5s, refresh" hx-swap="innerHTML" hx-sync="this:drop">
   Loading delivery metrics...
@@ -28,8 +28,10 @@
 
   <div class="panel">
     <form id="filter-form" method="GET" action="/dashboard" hx-get="/partials/webhooks" hx-headers='{"X-Update-History":"true"}' hx-target="#webhooks-table" hx-swap="outerHTML" hx-sync="this:replace" class="rule-form">
+      <input type="hidden" name="tz" value="UTC">
       <div class="section">
         <div class="section-title">Filters</div>
+        <p id="filter-error" class="inspect-error" role="alert" tabindex="-1" hidden></p>
 
         <div class="fields grid-2">
           <label>
@@ -51,14 +53,24 @@
         </div>
 
         <div class="fields grid-2" style="margin-top: 12px">
-          <label>
-            From (UTC)
-            <input type="datetime-local" name="from" value="{{.From}}" />
-          </label>
-          <label>
-            To (UTC)
-            <input type="datetime-local" name="to" value="{{.To}}" />
-          </label>
+          <div class="date-filter">
+            <label for="filter-from">From (<span data-timezone-label>UTC</span>)</label>
+            <div class="date-picker-field">
+              <input id="filter-from" type="datetime-local" name="from" value="{{.From}}" step="1" data-instant="{{.FromInstant}}" aria-describedby="filter-error" />
+              <button type="button" class="date-picker-trigger" aria-label="Choose From date and time" aria-haspopup="dialog" aria-controls="date-picker-popup" aria-expanded="false" hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="date-filter">
+            <label for="filter-to">To (<span data-timezone-label>UTC</span>)</label>
+            <div class="date-picker-field">
+              <input id="filter-to" type="datetime-local" name="to" value="{{.To}}" step="1" data-instant="{{.ToInstant}}" aria-describedby="filter-error" />
+              <button type="button" class="date-picker-trigger" aria-label="Choose To date and time" aria-haspopup="dialog" aria-controls="date-picker-popup" aria-expanded="false" hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18"/></svg>
+              </button>
+            </div>
+          </div>
         </div>
 
         <label style="margin-top: 12px">
@@ -85,7 +97,7 @@
                 class="btn-secondary"
                 onclick='
                   const form = this.closest("form");
-                  for (const field of form.querySelectorAll("input, select")) {
+                  for (const field of form.querySelectorAll("input:not([type=hidden]), select")) {
                     field.value = field.name === "sort" ? "id_desc" : "";
                   }
                   htmx.trigger(form, "submit");'>
@@ -98,12 +110,30 @@
     </form>
   </div>
 
-  <p class="helper-text">Logs last updated: <time id="logs-updated">Not yet loaded</time></p>
+  <p class="helper-text">Logs last updated: <time id="logs-updated" data-local-time>Not yet loaded</time></p>
   <p id="logs-refresh-message" role="status" aria-live="polite"></p>
   <div id="webhooks-table" hx-get="{{.CurrentURL}}" hx-trigger="load, every 5s, refresh" hx-swap="outerHTML" hx-sync="#filter-form:drop">
     Loading logs...
   </div>
 </section>
+</div>
+<div id="date-picker-popup" class="date-picker" popover="auto" role="dialog" aria-labelledby="date-picker-context">
+  <p id="date-picker-context" class="date-picker-context">Date and time</p>
+  <div class="date-picker-header">
+    <button type="button" data-calendar-action="previous" aria-label="Previous month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button>
+    <h3 id="date-picker-month" aria-live="polite"></h3>
+    <button type="button" data-calendar-action="next" aria-label="Next month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg></button>
+  </div>
+  <table class="date-picker-grid" role="grid" aria-labelledby="date-picker-month">
+    <thead><tr><th scope="col" abbr="Monday">Mo</th><th scope="col" abbr="Tuesday">Tu</th><th scope="col" abbr="Wednesday">We</th><th scope="col" abbr="Thursday">Th</th><th scope="col" abbr="Friday">Fr</th><th scope="col" abbr="Saturday">Sa</th><th scope="col" abbr="Sunday">Su</th></tr></thead>
+    <tbody id="date-picker-days"></tbody>
+  </table>
+  <label for="date-picker-time" class="date-picker-time-label">Time</label>
+  <input id="date-picker-time" type="time" step="1" required>
+  <div class="date-picker-actions">
+    <button type="button" data-calendar-action="clear">Clear</button>
+    <button type="button" data-calendar-action="done">Done</button>
+  </div>
 </div>
 <script src="/static/dashboard.js" defer></script>
 {{end}}
