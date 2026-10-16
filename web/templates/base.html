@@ -26,12 +26,13 @@
     <a href="/forwarding" hx-boost="true" class="nav-link">Forwarding Rules</a>
   </nav>
 
-  <label class="timezone-control">
-    Timezone
-    <select id="timezone-select" disabled>
+  <div class="timezone-control">
+    <label for="timezone-select">Timezone</label>
+    <select id="timezone-select" aria-describedby="timezone-current" disabled>
       <option value="UTC">UTC</option>
     </select>
-  </label>
+    <span id="timezone-current" class="timezone-current" aria-live="polite">UTC</span>
+  </div>
 
   <form action="/logout" method="POST">
     <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">

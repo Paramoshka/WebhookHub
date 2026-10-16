@@ -48,8 +48,13 @@
   function formatTime(element) {
     if (!element.dateTime || !Number.isFinite(Date.parse(element.dateTime))) return;
     const p = dateParts(element.dateTime);
-    element.textContent = `${p.year.padStart(4, "0")}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second} ${p.timeZoneName.replace("GMT", "UTC")}`;
+    const text = `${p.year.padStart(4, "0")}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second} ${p.timeZoneName.replace("GMT", "UTC")}`;
+    if (element.textContent !== text) element.textContent = text;
     element.title = `${zone} · ${element.dateTime}`;
+  }
+
+  function formatTimes(root) {
+    for (const element of root.querySelectorAll("time[data-local-time][datetime]")) formatTime(element);
   }
 
   function render() {
@@ -61,7 +66,7 @@
           for (const name of Intl.supportedValuesOf("timeZone")) zones.add(name);
         }
         if (preference !== "browser") zones.add(preference);
-        select.replaceChildren(new Option(`Browser timezone (${browserZone})`, "browser"), new Option("UTC", "UTC"));
+        select.replaceChildren(new Option("Browser timezone", "browser"), new Option("UTC", "UTC"));
         zones.delete("UTC");
         for (const name of [...zones].sort()) select.add(new Option(name, name));
         select.dataset.ready = "true";
@@ -69,7 +74,12 @@
       }
       select.value = preference;
     }
-    for (const element of document.querySelectorAll("time[data-local-time][datetime]")) formatTime(element);
+    const current = document.getElementById("timezone-current");
+    if (current) {
+      const text = `${zone} · ${dateParts(new Date()).timeZoneName.replace("GMT", "UTC")}`;
+      if (current.textContent !== text) current.textContent = text;
+    }
+    formatTimes(document);
     for (const label of document.querySelectorAll("[data-timezone-label]")) label.textContent = zone;
     const form = document.getElementById("filter-form");
     if (!form) return;
@@ -109,6 +119,16 @@
       // when a user reapplies a shared URL without editing its date fields.
       if (field.value === field.dataset.displayValue) event.detail.parameters[name] = field.dataset.instant;
     }
+  });
+
+  document.addEventListener("htmx:beforeSwap", (event) => {
+    const { target, shouldSwap, serverResponse } = event.detail;
+    if (!shouldSwap || !["webhooks-table", "delivery-metrics", "inspect-delivery"].includes(target.id)) return;
+    // Format detached HTML so polling never paints UTC before the local time.
+    const fragment = document.createElement("template");
+    fragment.innerHTML = serverResponse;
+    formatTimes(fragment.content);
+    event.detail.serverResponse = fragment.innerHTML;
   });
 
   document.addEventListener("htmx:beforeRequest", (event) => {

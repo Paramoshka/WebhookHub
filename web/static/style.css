@@ -128,7 +128,17 @@ p {
 }
 
 .timezone-control {
-    width: min(100%, 16rem);
+    flex: 0 1 26rem;
+    width: min(100%, 26rem);
+    min-width: 0;
+}
+
+.timezone-current {
+    display: block;
+    margin-top: 0.45rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+    overflow-wrap: anywhere;
 }
 
 .brand-group {
@@ -340,6 +350,11 @@ p {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.fields > label {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
 label {
     display: block;
     color: var(--text);
@@ -362,6 +377,7 @@ input[type="url"],
 input[type="number"],
 input[type="password"],
 input[type="email"],
+input[type="datetime-local"],
 select,
 textarea {
     width: 100%;
@@ -373,6 +389,22 @@ textarea {
     color: var(--text);
     outline: none;
     transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+input[type="datetime-local"] {
+    min-width: 0;
+    min-height: 48px;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+}
+
+input[type="datetime-local"]::-webkit-datetime-edit {
+    padding: 0;
+}
+
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    padding: 0.2rem;
+    cursor: pointer;
 }
 
 input::placeholder,
