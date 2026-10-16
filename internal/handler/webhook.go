@@ -99,7 +99,11 @@ func ListWebhooks(db webhookAPIStore) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		filter, _ := parseWebhookFilterAndPage(r)
+		filter, _, err := parseWebhookFilterAndPage(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		hooks, err := db.Filtered(r.Context(), filter, limit+1, (page-1)*limit)
 		if err != nil {
 			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
@@ -107,7 +111,7 @@ func ListWebhooks(db webhookAPIStore) http.HandlerFunc {
 		}
 		if len(hooks) > limit {
 			hooks = hooks[:limit]
-			query := r.URL.Query()
+			query := canonicalDateQuery(r.URL.Query(), filter.From, filter.To)
 			query.Set("page", strconv.Itoa(page+1))
 			query.Set("limit", strconv.Itoa(limit))
 			next := url.URL{Path: "/api/webhooks", RawQuery: query.Encode()}

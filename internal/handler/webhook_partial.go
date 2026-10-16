@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"net/http"
 	"net/url"
@@ -30,6 +31,8 @@ type WebhookPageData struct {
 	Query          string
 	From           string
 	To             string
+	FromInstant    string
+	ToInstant      string
 	Sort           string
 	CSRFToken      string
 }
@@ -41,7 +44,11 @@ type webhookListStore interface {
 
 func WebhookPartial(db webhookListStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		filter, page := parseWebhookFilterAndPage(r)
+		filter, page, err := parseWebhookFilterAndPage(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		offset := (page - 1) * webhookPageSize
 
 		hooks, err := db.FilteredSummary(r.Context(), filter, webhookPageSize, offset)
@@ -55,7 +62,7 @@ func WebhookPartial(db webhookListStore) http.HandlerFunc {
 			return
 		}
 
-		query := r.URL.Query()
+		query := canonicalDateQuery(r.URL.Query(), filter.From, filter.To)
 
 		data := WebhookPageData{
 			Webhooks:       hooks,
@@ -73,6 +80,8 @@ func WebhookPartial(db webhookListStore) http.HandlerFunc {
 			Query:          filter.Query,
 			From:           formatDateTimeInput(filter.From),
 			To:             formatDateTimeInput(filter.To),
+			FromInstant:    dateTimeInstant(filter.From),
+			ToInstant:      dateTimeInstant(filter.To),
 			Sort:           filter.Sort,
 			CSRFToken:      CSRFToken(r),
 		}
@@ -86,48 +95,54 @@ func WebhookPartial(db webhookListStore) http.HandlerFunc {
 	}
 }
 
-func parseWebhookFilterAndPage(r *http.Request) (storage.WebhookFilter, int) {
+func parseWebhookFilterAndPage(r *http.Request) (storage.WebhookFilter, int, error) {
 	page := 1
 	pageStr := r.URL.Query().Get("page")
 	if p, err := strconv.Atoi(pageStr); err == nil && p > 0 && p <= math.MaxInt/webhookPageSize {
 		page = p
 	}
 
+	from, to, err := webhookFilterDates(r.URL.Query())
+	if err != nil {
+		return storage.WebhookFilter{}, page, err
+	}
 	filter := storage.WebhookFilter{
 		Source: strings.TrimSpace(r.URL.Query().Get("source")),
 		Status: strings.TrimSpace(r.URL.Query().Get("status")),
 		Query:  strings.TrimSpace(r.URL.Query().Get("q")),
 		Sort:   strings.TrimSpace(r.URL.Query().Get("sort")),
-		From:   parseWebhookDateTime(r.URL.Query().Get("from"), false),
-		To:     parseWebhookDateTime(r.URL.Query().Get("to"), true),
+		From:   from,
+		To:     to,
 	}
 
-	return filter, page
+	return filter, page, nil
 }
 
-func parseWebhookDateTime(raw string, isTo bool) *time.Time {
+func parseWebhookDateTime(raw string, isTo bool, loc *time.Location) (*time.Time, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return nil
+		return nil, nil
+	}
+	if t, err := time.Parse(time.RFC3339Nano, raw); err == nil {
+		return &t, nil
 	}
 
 	layouts := []string{
-		time.RFC3339,
-		time.RFC3339Nano,
+		"2006-01-02T15:04:05",
 		"2006-01-02T15:04",
 		"2006-01-02",
 	}
 
 	for _, layout := range layouts {
-		if t, err := time.ParseInLocation(layout, raw, time.UTC); err == nil {
+		if t, err := time.Parse(layout, raw); err == nil {
 			if layout == "2006-01-02" && isTo {
 				t = t.AddDate(0, 0, 1)
 			}
-			return &t
+			return resolveLocalTime(t, loc)
 		}
 	}
 
-	return nil
+	return nil, fmt.Errorf("invalid date %q; enter a date and time or an RFC3339 value", raw)
 }
 
 func formatDateTimeInput(v *time.Time) string {

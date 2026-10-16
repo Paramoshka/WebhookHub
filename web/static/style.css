@@ -116,6 +116,7 @@ p {
     margin: 0 auto 24px;
     padding: 18px 22px;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 18px;
@@ -124,6 +125,10 @@ p {
     border-radius: 26px;
     backdrop-filter: blur(18px);
     box-shadow: var(--shadow);
+}
+
+.timezone-control {
+    width: min(100%, 16rem);
 }
 
 .brand-group {

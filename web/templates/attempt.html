@@ -8,7 +8,7 @@
     <p><span class="status-chip status-{{.Attempt.Status}}">{{.Attempt.Status}}</span>
       · HTTP {{if .Attempt.HTTPStatus}}{{.Attempt.HTTPStatus}}{{else}}—{{end}}
       · {{.Attempt.DurationMS}} ms
-      · {{.Attempt.StartedAt.UTC.Format "2006-01-02 15:04:05 UTC"}}</p>
+      · <time data-local-time datetime="{{.Attempt.StartedAt.UTC.Format "2006-01-02T15:04:05.999999999Z07:00"}}">{{.Attempt.StartedAt.UTC.Format "2006-01-02 15:04:05 UTC"}}</time></p>
     {{if .Attempt.ErrorMessage}}<pre class="code-block">{{.Attempt.ErrorMessage}}</pre>{{end}}
   </section>
   {{if .Attempt.ResponseCaptured}}

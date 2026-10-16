@@ -50,7 +50,7 @@
         <td class="table-id">#{{.ID}}</td>
         <td>{{.Source}}</td>
         <td>{{.FailureCount}}</td>
-        <td>{{if .DeadLetteredAt}}{{.DeadLetteredAt}}{{else}}-{{end}}</td>
+        <td>{{if .DeadLetteredAt}}<time data-local-time datetime="{{.DeadLetteredAt.UTC.Format "2006-01-02T15:04:05.999999999Z07:00"}}">{{.DeadLetteredAt.UTC.Format "2006-01-02 15:04:05 UTC"}}</time>{{else}}-{{end}}</td>
         <td>{{if .DeadLetterReason}}{{.DeadLetterReason}}{{else}}-{{end}}</td>
         <td>
           <div class="table-actions">
@@ -135,7 +135,7 @@
         <td>{{.Source}}</td>
         <td>{{if .Target}}{{.Target}}{{else}}-{{end}}</td>
         <td>{{if .HTTPStatus}}{{.HTTPStatus}}{{else}}-{{end}}</td>
-        <td>{{.StartedAt}}</td>
+        <td><time data-local-time datetime="{{.StartedAt.UTC.Format "2006-01-02T15:04:05.999999999Z07:00"}}">{{.StartedAt.UTC.Format "2006-01-02 15:04:05 UTC"}}</time></td>
         <td>{{if .ErrorMessage}}{{.ErrorMessage}}{{else}}-{{end}}</td>
       </tr>
       {{end}}

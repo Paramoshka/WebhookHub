@@ -11,7 +11,7 @@
   <p id="dashboard-action-message" role="status" aria-live="polite"></p>
 </section>
 
-<p class="helper-text">Metrics last updated: <time id="metrics-updated">Not yet loaded</time></p>
+<p class="helper-text">Metrics last updated: <time id="metrics-updated" data-local-time>Not yet loaded</time></p>
 <p id="metrics-refresh-message" role="status" aria-live="polite"></p>
 <div id="delivery-metrics" hx-get="/partials/metrics" hx-trigger="load, every 5s, refresh" hx-swap="innerHTML" hx-sync="this:drop">
   Loading delivery metrics...
@@ -28,8 +28,10 @@
 
   <div class="panel">
     <form id="filter-form" method="GET" action="/dashboard" hx-get="/partials/webhooks" hx-headers='{"X-Update-History":"true"}' hx-target="#webhooks-table" hx-swap="outerHTML" hx-sync="this:replace" class="rule-form">
+      <input type="hidden" name="tz" value="UTC">
       <div class="section">
         <div class="section-title">Filters</div>
+        <p id="filter-error" class="inspect-error" role="alert" tabindex="-1" hidden></p>
 
         <div class="fields grid-2">
           <label>
@@ -52,12 +54,12 @@
 
         <div class="fields grid-2" style="margin-top: 12px">
           <label>
-            From (UTC)
-            <input type="datetime-local" name="from" value="{{.From}}" />
+            From (<span data-timezone-label>UTC</span>)
+            <input type="datetime-local" name="from" value="{{.From}}" step="1" data-instant="{{.FromInstant}}" aria-describedby="filter-error" />
           </label>
           <label>
-            To (UTC)
-            <input type="datetime-local" name="to" value="{{.To}}" />
+            To (<span data-timezone-label>UTC</span>)
+            <input type="datetime-local" name="to" value="{{.To}}" step="1" data-instant="{{.ToInstant}}" aria-describedby="filter-error" />
           </label>
         </div>
 
@@ -85,7 +87,7 @@
                 class="btn-secondary"
                 onclick='
                   const form = this.closest("form");
-                  for (const field of form.querySelectorAll("input, select")) {
+                  for (const field of form.querySelectorAll("input:not([type=hidden]), select")) {
                     field.value = field.name === "sort" ? "id_desc" : "";
                   }
                   htmx.trigger(form, "submit");'>
@@ -98,7 +100,7 @@
     </form>
   </div>
 
-  <p class="helper-text">Logs last updated: <time id="logs-updated">Not yet loaded</time></p>
+  <p class="helper-text">Logs last updated: <time id="logs-updated" data-local-time>Not yet loaded</time></p>
   <p id="logs-refresh-message" role="status" aria-live="polite"></p>
   <div id="webhooks-table" hx-get="{{.CurrentURL}}" hx-trigger="load, every 5s, refresh" hx-swap="outerHTML" hx-sync="#filter-form:drop">
     Loading logs...

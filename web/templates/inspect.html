@@ -11,7 +11,7 @@
       </div>
       <div class="detail-card">
         <span class="detail-label">Received at</span>
-        <strong>{{.Webhook.ReceivedAt.UTC.Format "2006-01-02 15:04:05 UTC"}}</strong>
+        <strong><time data-local-time datetime="{{.Webhook.ReceivedAt.UTC.Format "2006-01-02T15:04:05.999999999Z07:00"}}">{{.Webhook.ReceivedAt.UTC.Format "2006-01-02 15:04:05 UTC"}}</time></strong>
       </div>
     </div>
     <a href="/webhooks/{{.Webhook.ID}}/payload" class="action-link" download>Download payload</a>

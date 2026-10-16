@@ -16,8 +16,8 @@
     </form>
     <div class="detail-grid">
       <div class="detail-card"><span class="detail-label">Failures</span><strong>{{.Webhook.FailureCount}}</strong></div>
-      <div class="detail-card"><span class="detail-label">Next retry</span><strong>{{if .Webhook.NextRetryAt}}{{.Webhook.NextRetryAt.UTC.Format "2006-01-02 15:04:05 UTC"}}{{else}}—{{end}}</strong></div>
-      {{if .Webhook.DeadLetteredAt}}<div class="detail-card"><span class="detail-label">Dead-lettered at</span><strong>{{.Webhook.DeadLetteredAt.UTC.Format "2006-01-02 15:04:05 UTC"}}</strong></div>{{end}}
+      <div class="detail-card"><span class="detail-label">Next retry</span><strong>{{if .Webhook.NextRetryAt}}<time data-local-time datetime="{{.Webhook.NextRetryAt.UTC.Format "2006-01-02T15:04:05.999999999Z07:00"}}">{{.Webhook.NextRetryAt.UTC.Format "2006-01-02 15:04:05 UTC"}}</time>{{else}}—{{end}}</strong></div>
+      {{if .Webhook.DeadLetteredAt}}<div class="detail-card"><span class="detail-label">Dead-lettered at</span><strong><time data-local-time datetime="{{.Webhook.DeadLetteredAt.UTC.Format "2006-01-02T15:04:05.999999999Z07:00"}}">{{.Webhook.DeadLetteredAt.UTC.Format "2006-01-02 15:04:05 UTC"}}</time></strong></div>{{end}}
     </div>
     {{if .Webhook.LastError}}<h3>Last error</h3><pre class="code-block">{{.Webhook.LastError}}</pre>{{end}}
     {{if .Webhook.DeadLetterReason}}<h3>Dead-letter reason</h3><pre class="code-block">{{.Webhook.DeadLetterReason}}</pre>{{end}}
@@ -26,7 +26,7 @@
     {{if .Attempts}}
     <div class="inspect-attempts">
       <table class="data-table">
-        <thead><tr><th>ID</th><th>Target</th><th>Status</th><th>HTTP</th><th>Duration</th><th>Started (UTC)</th><th>Error</th></tr></thead>
+        <thead><tr><th>ID</th><th>Target</th><th>Status</th><th>HTTP</th><th>Duration</th><th>Started</th><th>Error</th></tr></thead>
         <tbody>
           {{range .Attempts}}
           <tr>
@@ -35,7 +35,7 @@
             <td><span class="status-chip status-{{.Status}}">{{.Status}}</span></td>
             <td>{{if .HTTPStatus}}{{.HTTPStatus}}{{else}}—{{end}}</td>
             <td>{{.DurationMS}} ms</td>
-            <td>{{.StartedAt.UTC.Format "2006-01-02 15:04:05"}}</td>
+            <td><time data-local-time datetime="{{.StartedAt.UTC.Format "2006-01-02T15:04:05.999999999Z07:00"}}">{{.StartedAt.UTC.Format "2006-01-02 15:04:05 UTC"}}</time></td>
             <td class="wrap-text">{{if .ErrorMessage}}{{.ErrorMessage}}{{else}}—{{end}}</td>
           </tr>
           {{end}}

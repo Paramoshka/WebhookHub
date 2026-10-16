@@ -26,13 +26,18 @@ type DLQPageData struct {
 
 func DLQUI(db *storage.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		from, to, err := webhookFilterDates(r.URL.Query())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		source := strings.TrimSpace(r.URL.Query().Get("source"))
 		query := storage.WebhookFilter{
 			Source: source,
 			Status: "dead_lettered",
 			Query:  strings.TrimSpace(r.URL.Query().Get("q")),
-			From:   parseWebhookDateTime(r.URL.Query().Get("from"), false),
-			To:     parseWebhookDateTime(r.URL.Query().Get("to"), true),
+			From:   from,
+			To:     to,
 		}
 
 		page := parsePage(r.URL.Query().Get("page"))
@@ -50,7 +55,7 @@ func DLQUI(db *storage.DB) http.HandlerFunc {
 			return
 		}
 
-		filters := r.URL.Query()
+		filters := canonicalDateQuery(r.URL.Query(), from, to)
 		data := DLQPageData{
 			Webhooks:    webhooks,
 			Source:      source,

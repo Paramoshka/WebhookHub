@@ -253,17 +253,32 @@ Query params:
 - `source`: exact match on webhook source.
 - `status`: exact match on status (`pending`, `processing`, `retrying`, `success`, `failed`, `skipped`, `dead_lettered`).
 - `q`: full-text search across `source`, payload, headers, last error, and DLQ reason.
-- `from`: inclusive lower bound for `received_at` (supports `RFC3339`, `RFC3339Nano`, `2006-01-02T15:04`, `2006-01-02`).
-- `to`: exclusive upper bound for `received_at` (same formats; a date-only value includes that entire UTC day by using the start of the following day as the bound).
+- `from`: inclusive lower bound for `received_at` (supports `RFC3339`, `RFC3339Nano`, `2006-01-02T15:04:05`, `2006-01-02T15:04`, `2006-01-02`).
+- `to`: exclusive upper bound for `received_at` (same formats; a date-only value includes that entire calendar day by using the start of the following day in the specified timezone as the bound).
+- `tz`: named timezone for values without an offset, e.g. `Europe/Moscow` (default `UTC`). Also supported by `/dashboard`, `/dlq`, and `/api/webhooks`.
 - `sort`: one of `id_desc` (default), `received_desc`, `received_asc`, `id_asc`.
 - `page`: page number (default `1`), 10 items per page.
 
-The **From (UTC)** and **To (UTC)** controls display UTC. Values without an offset
-are interpreted as UTC, independent of the server timezone; RFC3339 values with
-an explicit offset keep their original instant and are displayed in UTC. This
-also applies to DLQ query parameters. On upgrade, existing filter URLs without
-an offset change from server-local time to UTC; add an explicit offset to retain
-their previous meaning if your server used another timezone.
+The **Timezone** selector in the header defaults to **Browser timezone** and offers
+UTC and named timezones. The choice is saved in this browser's local storage and
+applies to timestamps throughout the UI and the **From / To** controls. Timestamps
+show seconds and their UTC offset; hovering also reveals the timezone and original
+UTC value. Without JavaScript, rendered timestamps and date inputs remain in UTC.
+The full timezone list requires a browser with `Intl.supportedValuesOf`; older
+browsers offer UTC, the browser timezone, and any saved timezone.
+
+Changing timezone preserves the applied interval. Unsubmitted date edits retain
+their entered clock values in the newly selected timezone. Applying filters writes
+exact RFC3339 UTC bounds into navigation links, so shared links, pagination, and
+automatic refresh keep the same interval regardless of the viewer's timezone.
+Reapplying unchanged date fields preserves the original fractional seconds.
+
+Existing URLs without `tz` or an explicit offset still mean UTC, independent of
+the server timezone. RFC3339 values with an explicit offset always keep their
+original instant. Invalid dates, unknown timezones, and clock times skipped or
+repeated during a timezone transition return `400`. The filter form displays the
+error while keeping the previous results. Choose a time outside the transition,
+or use an RFC3339 URL with an explicit offset to select a repeated time precisely.
 
 Automatic refresh preserves the current page and applied filters. Apply and Reset
 start at page 1; Reset clears the filters.

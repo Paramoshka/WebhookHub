@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{block "title" .}}WebhookHub{{end}}</title>
   <script src="/static/htmx.min.js"></script>
+  <script src="/static/timezone.js" defer></script>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -24,6 +25,13 @@
     <a href="/dlq" hx-boost="true" class="nav-link">DLQ</a>
     <a href="/forwarding" hx-boost="true" class="nav-link">Forwarding Rules</a>
   </nav>
+
+  <label class="timezone-control">
+    Timezone
+    <select id="timezone-select" disabled>
+      <option value="UTC">UTC</option>
+    </select>
+  </label>
 
   <form action="/logout" method="POST">
     <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
