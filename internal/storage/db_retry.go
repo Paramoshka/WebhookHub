@@ -19,9 +19,10 @@ func (d *DB) ClaimDeliverableWebhooks(ctx context.Context, limit int, now, lease
 		if err := tx.
 			Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
 			Where(
-				"status = ? OR (status = ? AND next_retry_at IS NOT NULL AND next_retry_at <= ?) OR (status = ? AND delivery_lease_until IS NOT NULL AND delivery_lease_until <= ?)",
+				"(status = ? OR (status = ? AND next_retry_at IS NOT NULL AND next_retry_at <= ?) OR (status = ? AND delivery_lease_until IS NOT NULL AND delivery_lease_until <= ?))",
 				"pending", "retrying", now, "processing", now,
 			).
+			Where("NOT EXISTS (SELECT 1 FROM forwarding_rules WHERE forwarding_rules.source = webhooks.source AND forwarding_rules.paused = ?)", true).
 			Order("COALESCE(next_retry_at, received_at) asc").
 			Limit(limit).
 			Find(&hooks).Error; err != nil {

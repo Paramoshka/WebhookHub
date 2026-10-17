@@ -79,6 +79,13 @@ deliver it asynchronously. Each source has one forwarding target. If no rule
 exists when a worker processes an event, it is marked `skipped` and remains
 available for inspection. Add a rule and Replay it to request delivery.
 
+Use [Pause / Resume](forwarding-ui.md#pause-and-resume) on a forwarding rule to
+hold its queue while continuing to accept incoming events. Pausing prevents new
+claims, including retries and recovery of expired leases, without consuming
+attempts. Already claimed deliveries may finish. Paused state is stored in
+PostgreSQL and survives restarts and rule edits. Resume allows queued events to
+be claimed when due; it does not requeue completed or dead-lettered events.
+
 Delivery is at-least-once. A database lease lets another worker recover a webhook
 left in `processing` after a crash. A duplicate remains possible if the target
 accepted a request but WebhookHub stopped before persisting the result. Receivers
@@ -130,7 +137,7 @@ RETENTION_BATCH_SIZE=300
 
 When enabled, cleanup runs once on startup and then every configured interval,
 removing expired webhooks in batches by `received_at`. Active deliveries and
-queued events are retained. Cleanup locks each
+queued events, including those held by a pause, are retained. Cleanup locks each
 batch before deleting it: a webhook successfully requeued first is retained;
 Replay returns `404` if cleanup deleted the webhook first. Attempt history and
 saved responses are deleted with their webhook.
@@ -145,6 +152,10 @@ Startup runs GORM migrations automatically and creates or replaces the PostgreSQ
 function `webhookhub_payload_text(bytea)` for payload text search. The database
 user must have permission to create functions in the application's schema and
 own the function on upgrades.
+
+The forwarding pause column is added automatically with a default of `false`, so
+existing rules remain active. Stop all old application instances before relying
+on Pause: older workers do not check the new flag and can still deliver events.
 
 When upgrading from a version without lease ownership checks, stop all old
 workers before starting the new version. Startup adds the lease-version column

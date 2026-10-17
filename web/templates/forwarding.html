@@ -78,11 +78,15 @@
   </div>
 </div>
 
+<p class="muted">Paused sources keep accepting events. Resume sends queued events when due.
+  Deliveries already in progress may finish. Refresh this page to update queue counts.</p>
+
 <table class="data-table">
   <thead>
   <tr>
     <th>Source</th>
     <th>Target URL</th>
+    <th>Delivery</th>
     <th>Retry Policy</th>
     <th>Incoming HMAC</th>
     <th>Outgoing HMAC</th>
@@ -94,11 +98,20 @@
   <tr>
     <td><span class="source-badge">{{.Source}}</span></td>
     <td class="wrap-text">{{.Target}}</td>
+    <td>
+      <strong>{{if .Paused}}Paused{{else}}Active{{end}}</strong><br>
+      <span class="muted">{{index $.QueueCounts .Source}} queued</span>
+    </td>
     <td>{{if gt .RetryMaxAttempts 0}}{{.RetryMaxAttempts}}{{else}}3{{end}} attempts / {{if gt .RetryBackoffSeconds 0}}{{.RetryBackoffSeconds}}{{else}}2{{end}}s backoff</td>
     <td>{{if .VerifySecret}}✓ ({{if .VerifyHeader}}{{.VerifyHeader}}{{else}}Stripe-Signature{{end}}, {{if gt .ToleranceSeconds 0}}{{.ToleranceSeconds}}s{{else}}no time check{{end}}){{else}}—{{end}}</td>
     <td>{{if .OutgoingSecret}}✓{{else}}—{{end}}</td>
     <td>
       <div class="action-buttons">
+        <form method="POST" action="{{if .Paused}}/forwarding/resume{{else}}/forwarding/pause{{end}}">
+          <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+          <input type="hidden" name="source" value="{{.Source}}">
+          <button class="btn-secondary" type="submit" aria-label="{{if .Paused}}Resume{{else}}Pause{{end}} delivery for {{.Source}}">{{if .Paused}}Resume{{else}}Pause{{end}}</button>
+        </form>
         <button
                 class="btn-edit"
                 hx-get="/forwarding/edit?source={{.Source}}"

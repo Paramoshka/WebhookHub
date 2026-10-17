@@ -91,6 +91,7 @@ and cookie from `GET /login`. The browser UI handles these cookies and tokens.
 | `POST /api/webhooks/replay?id={id}` | Requeue one event; optional local `redirect_to` |
 | `POST /api/webhooks/delete?id={id}` | Delete an event and its attempt history; optional local `redirect_to` |
 | `POST /api/webhooks/replay/bulk` | Requeue selected dead-lettered events using form data |
+| `POST /forwarding/pause`, `POST /forwarding/resume` | Set a source's delivery state using a `source` form field |
 | `GET /webhooks/{id}` | HTML inspection page |
 | `GET /webhooks/{id}/attempts/{attemptID}` | HTML page for a saved attempt response |
 | `GET /webhooks/{id}/payload` | Download the stored payload bytes |
@@ -102,6 +103,11 @@ in `processing`, and `503` for database errors. Ordinary successful requests
 redirect with `303`; with `HX-Request: true`, Replay returns an HTML confirmation
 and Delete returns an empty `200` response. These mutation endpoints use form
 and redirect responses, not JSON.
+
+Pause and Resume require login and CSRF protection. They return `303` to
+`/forwarding` on success, `400` for an invalid source or form, `404` for a missing
+rule, and `503` for database errors. Repeating the same action keeps the requested
+state. See [Pause and resume](forwarding-ui.md#pause-and-resume) for queue behavior.
 
 ## Paginated JSON API
 

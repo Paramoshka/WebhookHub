@@ -27,6 +27,8 @@ See [use cases](docs/use-cases.md) for development and deployment workflows.
   timestamps.
 - Configure one forwarding target per source, with optional incoming HMAC
   verification and outgoing signing in Stripe-style format.
+- Pause and resume delivery per source while continuing to receive events;
+  see the queued event count beside each rule.
 - Track delivery status and metrics; retry with configurable attempts and backoff.
 - Replay individual events or requeue up to 20 selected DLQ events at a time,
   keeping attempt history.

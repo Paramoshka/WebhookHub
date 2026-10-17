@@ -208,6 +208,8 @@ func routes(db *storage.DB, auth *handler.Auth, maxBodyBytes int64) http.Handler
 	mux.HandleFunc("GET /webhooks/{id}/payload", protected(handler.DownloadWebhookPayload(db)))
 	mux.HandleFunc("GET /partials/webhook/{id}/delivery", protected(handler.InspectDeliveryPartial(db)))
 	mux.HandleFunc("GET /forwarding", protected(handler.ForwardingUI(db)))
+	mux.HandleFunc("POST /forwarding/pause", protectedMutation(handler.SetForwardingPaused(db, true)))
+	mux.HandleFunc("POST /forwarding/resume", protectedMutation(handler.SetForwardingPaused(db, false)))
 	mux.HandleFunc("POST /forwarding/save", protectedMutation(handler.SaveForwardingRule(db)))
 	mux.HandleFunc("GET /forwarding/edit", protected(handler.EditForwardingForm(db)))
 	mux.HandleFunc("POST /forwarding/update", protectedMutation(handler.UpdateForwardingRule(db)))

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
@@ -13,8 +14,9 @@ import (
 )
 
 type ForwardingPageData struct {
-	Rules     []model.ForwardingRule
-	CSRFToken string
+	Rules       []model.ForwardingRule
+	QueueCounts map[string]int64
+	CSRFToken   string
 }
 
 type EditForwardingData struct {
@@ -29,9 +31,41 @@ func ForwardingUI(db *storage.DB) http.HandlerFunc {
 			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if err := forwardingTemplates.ExecuteTemplate(w, "base", ForwardingPageData{Rules: rules, CSRFToken: CSRFToken(r)}); err != nil {
+		counts, err := db.QueuedWebhookCounts(r.Context())
+		if err != nil {
+			http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if err := forwardingTemplates.ExecuteTemplate(w, "base", ForwardingPageData{Rules: rules, QueueCounts: counts, CSRFToken: CSRFToken(r)}); err != nil {
 			http.Error(w, "Template render failed", http.StatusInternalServerError)
 		}
+	}
+}
+
+type forwardingPauseStore interface {
+	SetForwardingPaused(context.Context, string, bool) error
+}
+
+func SetForwardingPaused(db forwardingPauseStore, paused bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "Invalid form", http.StatusBadRequest)
+			return
+		}
+		source := strings.TrimSpace(r.PostForm.Get("source"))
+		if !validSource(source) {
+			http.Error(w, "Invalid webhook source", http.StatusBadRequest)
+			return
+		}
+		if err := db.SetForwardingPaused(r.Context(), source, paused); err != nil {
+			if errors.Is(err, storage.ErrNotFound) {
+				http.Error(w, "Rule not found", http.StatusNotFound)
+			} else {
+				http.Error(w, "Failed to change forwarding state", http.StatusServiceUnavailable)
+			}
+			return
+		}
+		http.Redirect(w, r, "/forwarding", http.StatusSeeOther)
 	}
 }
 

@@ -139,6 +139,39 @@ func TestForwardFinalizesAllOutcomes(t *testing.T) {
 	}
 }
 
+func TestForwardCompletesAlreadyClaimedDeliveryAfterPause(t *testing.T) {
+	db := openForwarderTestDB(t)
+	ctx := context.Background()
+	rule := model.ForwardingRule{Source: "paused", Target: "https://example.com"}
+	if err := db.SaveForwardingRule(ctx, rule); err != nil {
+		t.Fatal(err)
+	}
+	hook := model.Webhook{Source: rule.Source, Status: "pending", ReceivedAt: time.Now()}
+	if err := db.Save(ctx, &hook); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	claims, err := db.ClaimDeliverableWebhooks(ctx, 1, now, now.Add(time.Minute))
+	if err != nil || len(claims) != 1 {
+		t.Fatalf("claim: %+v, %v", claims, err)
+	}
+	if err := db.SetForwardingPaused(ctx, rule.Source, true); err != nil {
+		t.Fatal(err)
+	}
+	originalClient := deliveryClient
+	t.Cleanup(func() { deliveryClient = originalClient })
+	deliveryClient = &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader("accepted"))}, nil
+	})}
+	if err := Forward(ctx, db, &claims[0], DefaultDeliveryTimeout); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := db.FindByID(ctx, int(hook.ID))
+	if err != nil || stored.Status != "success" || string(stored.Response) != "accepted" {
+		t.Fatalf("claimed delivery did not finish: %+v, %v", stored, err)
+	}
+}
+
 func TestForwardRejectsExpiredClaimBeforeDatabaseAccess(t *testing.T) {
 	expired := time.Now().Add(-time.Second)
 	if err := Forward(context.Background(), nil, &model.Webhook{DeliveryLeaseUntil: &expired}, 0); !errors.Is(err, context.DeadlineExceeded) {

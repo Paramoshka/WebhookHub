@@ -123,6 +123,43 @@ func TestRoutesProtectAndLimitBulkReplay(t *testing.T) {
 	}
 }
 
+func TestRoutesProtectForwardingPauseAndResume(t *testing.T) {
+	key := strings.Repeat("a", 32)
+	auth, err := handler.NewAuth(key, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := securecookie.New([]byte(key), nil).Encode("session", struct{ User, CSRFToken string }{"admin@example.com", "token"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/forwarding/pause", "/forwarding/resume"} {
+		for _, test := range []struct {
+			name, method, body string
+			loggedIn           bool
+			want               int
+		}{
+			{"requires login", "POST", "source=stripe", false, http.StatusSeeOther},
+			{"requires POST", "GET", "", true, http.StatusMethodNotAllowed},
+			{"requires CSRF", "POST", "source=stripe", true, http.StatusForbidden},
+			{"valid CSRF reaches validation", "POST", "csrf_token=token&source=bad%2Fsource", true, http.StatusBadRequest},
+		} {
+			t.Run(path+"/"+test.name, func(t *testing.T) {
+				r := httptest.NewRequest(test.method, path, strings.NewReader(test.body))
+				r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+				if test.loggedIn {
+					r.AddCookie(&http.Cookie{Name: "session", Value: session})
+				}
+				w := httptest.NewRecorder()
+				routes(nil, auth, 1024).ServeHTTP(w, r)
+				if w.Code != test.want {
+					t.Fatalf("status=%d, want %d", w.Code, test.want)
+				}
+			})
+		}
+	}
+}
+
 func TestRoutesSetSecurityHeaders(t *testing.T) {
 	auth, err := handler.NewAuth(strings.Repeat("a", 32), false, false)
 	if err != nil {

@@ -7,6 +7,7 @@ Open `/forwarding` after logging in to manage forwarding rules. See the
 
 - Add, edit, and delete one forwarding rule per source
 - Set the target URL for outgoing delivery
+- Pause and resume delivery for each source
 - Verify incoming HMAC signatures
 - Sign outgoing deliveries
 - Configure retry policy per rule
@@ -36,6 +37,26 @@ is configurable; the signature format is fixed.
 
 See [delivery behavior](operations.md#delivery-behavior) for duplicate delivery
 and active-delivery restrictions.
+
+## Pause and resume
+
+Choose **Pause** beside a rule while its receiver is unavailable or being deployed.
+WebhookHub keeps accepting and storing incoming events, including signature
+verification when configured, but workers stop claiming deliveries for that source.
+Deliveries claimed before the pause may finish. Other sources continue normally.
+
+The **Delivery** column shows **Active** or **Paused** and the queued event count.
+The count includes pending events, scheduled retries and interrupted deliveries
+whose leases expired; active deliveries and completed or dead-lettered events are
+excluded. Refresh the page to update counts.
+
+Choose **Resume** to let workers drain the queue using the existing worker pool
+and retry schedule. Pause survives restarts and rule edits. Replay while paused
+queues an event until Resume; it does not bypass the pause. Queued events remain
+stored and are excluded from retention cleanup.
+
+Deleting a rule removes its pause too. Events processed without a forwarding
+rule become `skipped`; use Pause when you want to hold them for later delivery.
 
 ## Where to find it
 
