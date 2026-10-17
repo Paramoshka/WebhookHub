@@ -95,7 +95,7 @@
   </thead>
   <tbody>
   {{range .Rules}}
-  <tr>
+  <tr data-forwarding-source="{{.Source}}">
     <td><span class="source-badge">{{.Source}}</span></td>
     <td class="wrap-text">{{.Target}}</td>
     <td>
@@ -107,10 +107,14 @@
     <td>{{if .OutgoingSecret}}✓{{else}}—{{end}}</td>
     <td>
       <div class="action-buttons">
-        <form method="POST" action="{{if .Paused}}/forwarding/resume{{else}}/forwarding/pause{{end}}">
+        <form method="POST" action="{{if .Paused}}/forwarding/resume{{else}}/forwarding/pause{{end}}"
+              hx-post="{{if .Paused}}/forwarding/resume{{else}}/forwarding/pause{{end}}"
+              hx-target="closest tr"
+              hx-select="tr[data-forwarding-source='{{.Source}}']"
+              hx-swap="outerHTML">
           <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
           <input type="hidden" name="source" value="{{.Source}}">
-          <button class="btn-secondary" type="submit" aria-label="{{if .Paused}}Resume{{else}}Pause{{end}} delivery for {{.Source}}">{{if .Paused}}Resume{{else}}Pause{{end}}</button>
+          <button class="btn-secondary forwarding-toggle" type="submit" aria-label="{{if .Paused}}Resume{{else}}Pause{{end}} delivery for {{.Source}}">{{if .Paused}}Resume{{else}}Pause{{end}}</button>
         </form>
         <button
                 class="btn-edit"

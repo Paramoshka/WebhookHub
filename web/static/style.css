@@ -747,6 +747,10 @@ button:focus-visible {
     color: #ffd1cb;
 }
 
+.forwarding-toggle {
+    min-width: 7.5em;
+}
+
 .actions {
     display: flex;
     justify-content: flex-end;
