@@ -25,7 +25,12 @@ type webhookMutationStore interface {
 	DeleteWebhook(context.Context, int) error
 }
 
-func ReceiveWebhook(db *storage.DB, maxBodyBytes int64) http.HandlerFunc {
+type webhookReceiveStore interface {
+	GetForwardingRule(context.Context, string) (model.ForwardingRule, error)
+	Save(context.Context, *model.Webhook) error
+}
+
+func ReceiveWebhook(db webhookReceiveStore, maxBodyBytes int64) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		source := strings.TrimPrefix(r.URL.Path, "/hook/")
 		if !validSource(source) {

@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"webhookhub/internal/model"
 	"webhookhub/internal/storage"
 
 	"github.com/gorilla/securecookie"
@@ -63,7 +64,11 @@ func NewAuth(sessionKey string, secure, trustProxyHeaders bool) (*Auth, error) {
 	}, nil
 }
 
-func (a *Auth) Login(db *storage.DB) http.HandlerFunc {
+type loginUserStore interface {
+	FindUserByEmail(context.Context, string) (model.User, error)
+}
+
+func (a *Auth) Login(db loginUserStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			csrfToken, err := randomToken()

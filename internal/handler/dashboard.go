@@ -1,12 +1,13 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"webhookhub/internal/storage"
 )
 
-func DashboardUI(db *storage.DB) http.HandlerFunc {
+func DashboardUI() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		filter, page, err := parseWebhookFilterAndPage(r)
 		if err != nil {
@@ -37,7 +38,11 @@ type DeliveryMetricsData struct {
 	CSRFToken string
 }
 
-func DeliveryMetricsPartial(db *storage.DB) http.HandlerFunc {
+type deliveryMetricsStore interface {
+	DeliveryMetrics(context.Context) (storage.DeliveryMetrics, error)
+}
+
+func DeliveryMetricsPartial(db deliveryMetricsStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metrics, err := db.DeliveryMetrics(r.Context())
 		if err != nil {

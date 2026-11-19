@@ -59,7 +59,7 @@ func TestInvalidFilterDatesFailBeforeReadingStorage(t *testing.T) {
 	} {
 		for _, field := range []string{"from", "to"} {
 			values := url.Values{"tz": {test.zone}, field: {test.value}}
-			for _, handler := range []http.HandlerFunc{DashboardUI(nil), WebhookPartial(nil), DLQUI(nil), ListWebhooks(nil)} {
+			for _, handler := range []http.HandlerFunc{DashboardUI(), WebhookPartial(nil), DLQUI(nil), ListWebhooks(nil)} {
 				w := httptest.NewRecorder()
 				handler(w, httptest.NewRequest("GET", "/?"+values.Encode(), nil))
 				if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), test.message) {
@@ -120,7 +120,7 @@ func TestDashboardDisplaysFilterDatesInUTC(t *testing.T) {
 	values := url.Values{"from": {"2026-09-16T10:30:00+07:00"}, "to": {"2026-09-16"}}
 	r := httptest.NewRequest("GET", "/dashboard?"+values.Encode(), nil)
 	w := httptest.NewRecorder()
-	DashboardUI(nil)(w, r)
+	DashboardUI()(w, r)
 	body := html.UnescapeString(w.Body.String())
 	for _, want := range []string{"From (<span data-timezone-label>UTC</span>)", "To (<span data-timezone-label>UTC</span>)", `name="from" value="2026-09-16T03:30"`, `name="to" value="2026-09-17T00:00"`} {
 		if !strings.Contains(body, want) {

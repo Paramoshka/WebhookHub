@@ -26,7 +26,7 @@ func TestDashboardRestoresPageAndFilters(t *testing.T) {
 	values := url.Values{"page": {"3"}, "source": {"test"}, "q": {"a&b + Привет"}}
 	r := httptest.NewRequest("GET", "/dashboard?"+values.Encode(), nil)
 	w := httptest.NewRecorder()
-	DashboardUI(nil)(w, r)
+	DashboardUI()(w, r)
 	body := html.UnescapeString(w.Body.String())
 	if w.Code != 200 || !strings.Contains(body, buildWebhookListURL(values, 3)) || !strings.Contains(body, `value="a&b + Привет"`) {
 		t.Fatalf("page state not restored: %d %s", w.Code, body)

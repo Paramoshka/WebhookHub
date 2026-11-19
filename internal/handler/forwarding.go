@@ -24,7 +24,12 @@ type EditForwardingData struct {
 	CSRFToken string
 }
 
-func ForwardingUI(db *storage.DB) http.HandlerFunc {
+type forwardingListStore interface {
+	GetForwardingRules(context.Context) ([]model.ForwardingRule, error)
+	QueuedWebhookCounts(context.Context) (map[string]int64, error)
+}
+
+func ForwardingUI(db forwardingListStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		rules, err := db.GetForwardingRules(r.Context())
 		if err != nil {
@@ -69,7 +74,11 @@ func SetForwardingPaused(db forwardingPauseStore, paused bool) http.HandlerFunc 
 	}
 }
 
-func SaveForwardingRule(db *storage.DB) http.HandlerFunc {
+type forwardingSaveStore interface {
+	SaveForwardingRule(context.Context, model.ForwardingRule) error
+}
+
+func SaveForwardingRule(db forwardingSaveStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "Invalid form", http.StatusBadRequest)
@@ -90,7 +99,11 @@ func SaveForwardingRule(db *storage.DB) http.HandlerFunc {
 	}
 }
 
-func EditForwardingForm(db *storage.DB) http.HandlerFunc {
+type forwardingEditStore interface {
+	GetForwardingRule(context.Context, string) (model.ForwardingRule, error)
+}
+
+func EditForwardingForm(db forwardingEditStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		source := r.URL.Query().Get("source")
 		if source == "" {
@@ -114,7 +127,12 @@ func EditForwardingForm(db *storage.DB) http.HandlerFunc {
 	}
 }
 
-func UpdateForwardingRule(db *storage.DB) http.HandlerFunc {
+type forwardingUpdateStore interface {
+	forwardingEditStore
+	forwardingSaveStore
+}
+
+func UpdateForwardingRule(db forwardingUpdateStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "Invalid form", http.StatusBadRequest)
@@ -147,7 +165,11 @@ func UpdateForwardingRule(db *storage.DB) http.HandlerFunc {
 	}
 }
 
-func DeleteForwardingRule(db *storage.DB) http.HandlerFunc {
+type forwardingDeleteStore interface {
+	DeleteForwardingRule(context.Context, string) error
+}
+
+func DeleteForwardingRule(db forwardingDeleteStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "Invalid form", http.StatusBadRequest)

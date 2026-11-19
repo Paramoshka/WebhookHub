@@ -24,7 +24,7 @@ type DLQPageData struct {
 	BulkMessage string
 }
 
-func DLQUI(db *storage.DB) http.HandlerFunc {
+func DLQUI(db webhookListStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		from, to, err := webhookFilterDates(r.URL.Query())
 		if err != nil {
