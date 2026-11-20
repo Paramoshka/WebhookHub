@@ -38,6 +38,7 @@ See [use cases](docs/use-cases.md) for development and deployment workflows.
   pause automatic dashboard updates when investigating an event.
 - Read events through a paginated JSON API and optionally remove old events with
   retention cleanup.
+- Export the filtered journal as an NDJSON attachment from the dashboard or API.
 - Use a single admin login with session cookies and CSRF protection, plus process
   and database health checks.
 

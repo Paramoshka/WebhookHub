@@ -160,6 +160,26 @@ func TestRoutesProtectForwardingPauseAndResume(t *testing.T) {
 	}
 }
 
+func TestRoutesProtectExport(t *testing.T) {
+	auth, err := handler.NewAuth(strings.Repeat("a", 32), false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+
+	routes(nil, auth, 1024).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/webhooks/export", nil))
+
+	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/login" {
+		t.Fatalf("export must require login, got %d", response.Code)
+	}
+
+	response = httptest.NewRecorder()
+	routes(nil, auth, 1024).ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/webhooks/export", nil))
+	if response.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("export must be read-only, got %d", response.Code)
+	}
+}
+
 func TestRoutesSetSecurityHeaders(t *testing.T) {
 	auth, err := handler.NewAuth(strings.Repeat("a", 32), false, false)
 	if err != nil {

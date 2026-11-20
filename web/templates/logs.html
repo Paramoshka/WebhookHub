@@ -13,5 +13,6 @@
   {{else}}
   <a href="{{.NextPageURL}}" hx-get="{{.NextURL}}" hx-headers='{"X-Update-History":"true"}' hx-target="#webhooks-table" hx-swap="outerHTML" hx-sync="#filter-form:replace" class="nav-link">Next</a>
   {{end}}
+  <a href="{{.ExportURL}}" class="action-link" download>Export NDJSON</a>
 </div>
 </div>

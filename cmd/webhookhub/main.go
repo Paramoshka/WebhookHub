@@ -193,6 +193,7 @@ func routes(db *storage.DB, auth *handler.Auth, maxBodyBytes int64) http.Handler
 	mux.HandleFunc("GET /dashboard", protected(handler.DashboardUI()))
 	mux.HandleFunc("GET /dlq", protected(handler.DLQUI(db)))
 	mux.HandleFunc("GET /api/webhooks", protected(handler.ListWebhooks(db)))
+	mux.HandleFunc("GET /api/webhooks/export", protected(handler.ExportWebhooks(db)))
 	mux.HandleFunc("POST /api/webhooks/replay", protectedMutation(handler.ReplayWebhook(db)))
 	bulkReplay := auth.RequireCSRF(handler.BulkReplayWebhooks(db))
 	mux.HandleFunc("POST /api/webhooks/replay/bulk", protected(func(w http.ResponseWriter, r *http.Request) {

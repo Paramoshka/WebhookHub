@@ -34,6 +34,7 @@ type WebhookPageData struct {
 	FromInstant    string
 	ToInstant      string
 	Sort           string
+	ExportURL      string
 	CSRFToken      string
 }
 
@@ -83,6 +84,7 @@ func WebhookPartial(db webhookListStore) http.HandlerFunc {
 			FromInstant:    dateTimeInstant(filter.From),
 			ToInstant:      dateTimeInstant(filter.To),
 			Sort:           filter.Sort,
+			ExportURL:      buildExportURL(query),
 			CSRFToken:      CSRFToken(r),
 		}
 
@@ -161,17 +163,30 @@ func buildDashboardURL(values url.Values, page int) string {
 	return "/dashboard?" + webhookListQuery(values, page)
 }
 
+func buildExportURL(values url.Values) string {
+	query := webhookFilterQuery(values).Encode()
+	if query == "" {
+		return "/api/webhooks/export"
+	}
+	return "/api/webhooks/export?" + query
+}
+
 func webhookListQuery(values url.Values, page int) string {
 	if page < 1 {
 		page = 1
 	}
 
+	filtered := webhookFilterQuery(values)
+	filtered.Set("page", strconv.Itoa(page))
+	return filtered.Encode()
+}
+
+func webhookFilterQuery(values url.Values) url.Values {
 	filtered := url.Values{}
 	for _, name := range []string{"source", "status", "q", "from", "to", "sort"} {
 		if value := strings.TrimSpace(values.Get(name)); value != "" {
 			filtered.Set(name, value)
 		}
 	}
-	filtered.Set("page", strconv.Itoa(page))
-	return filtered.Encode()
+	return filtered
 }

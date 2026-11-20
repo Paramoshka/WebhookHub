@@ -88,6 +88,7 @@ and cookie from `GET /login`. The browser UI handles these cookies and tokens.
 | `POST /hook/{source}` | Receive a webhook; no admin login, optional per-source HMAC |
 | `GET /healthz`, `GET /readyz` | Public process and database health checks |
 | `GET /api/webhooks` | Paginated JSON events, including payload and latest response |
+| `GET /api/webhooks/export` | Stream all matching events as an NDJSON attachment |
 | `POST /api/webhooks/replay?id={id}` | Replay one event; optional local `redirect_to` |
 | `POST /api/webhooks/delete?id={id}` | Delete an event and its attempt history; optional local `redirect_to` |
 | `POST /api/webhooks/replay/bulk` | Requeue selected dead-lettered events using form data |
@@ -127,8 +128,26 @@ links. Pages are live views: new events and deletions can shift subsequent pages
 
 Byte slices such as `Payload` and `Response` are base64-encoded in JSON;
 `Headers` is a string containing a JSON object. The response contains event
-records, not the full per-attempt response history. Downloading an individual
-payload and reading paginated JSON do not provide a dedicated journal export.
+records, not the full per-attempt response history. For a full journal dump
+with the same filters, use the [NDJSON export](#export-the-journal).
+
+## Export the journal
+
+`GET /api/webhooks/export` requires login and streams every event matching the
+logs filters as NDJSON: one JSON object per line, in the same shape as the
+paginated API. It accepts the same `source`, `status`, `q`, `from`, `to`, `tz`
+and `sort` parameters as the logs; pagination parameters do not apply because
+the export covers all matches.
+
+The response is an attachment named `webhooks-<UTC timestamp>.ndjson`. Rows
+stream from a single query, so the export reflects one consistent snapshot and
+memory use stays bounded; disconnecting cancels the work. Invalid dates return
+`400`. If the database fails before the first row, the response is `503`; once
+streaming has started the status cannot change, so a late failure leaves an
+incomplete download.
+
+The dashboard logs show an **Export NDJSON** link beside pagination that
+carries the currently applied filters.
 
 ## Advanced logs filters (UI and API)
 
