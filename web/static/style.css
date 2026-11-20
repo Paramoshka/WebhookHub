@@ -945,13 +945,134 @@ time {
     overflow-wrap: anywhere;
 }
 
-.inspect-attempts {
-    overflow-x: auto;
+.attempt-timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0;
 }
 
-.inspect-attempts .data-table {
-    display: table;
-    min-width: 900px;
+.attempt-item {
+    position: relative;
+    display: grid;
+    grid-template-columns: 14px minmax(0, 1fr);
+    gap: 12px;
+    padding-bottom: 18px;
+}
+
+.attempt-item::before {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: 16px;
+    bottom: -2px;
+    width: 2px;
+    background: rgba(157, 189, 255, 0.16);
+}
+
+.attempt-item:last-child {
+    padding-bottom: 0;
+}
+
+.attempt-item:last-child::before {
+    display: none;
+}
+
+/* Must stay after the .status-* rules: the dot fills with currentColor
+   taken from the attempt's status class. */
+.attempt-dot {
+    position: relative;
+    z-index: 1;
+    width: 12px;
+    height: 12px;
+    margin-top: 5px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.attempt-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.attempt-id {
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.attempt-id:hover,
+.attempt-id:focus-visible {
+    color: var(--accent);
+}
+
+.http-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 0 0.5rem;
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.http-2xx {
+    color: var(--success);
+    background: rgba(95, 224, 166, 0.12);
+}
+
+.http-3xx,
+.http-4xx {
+    color: var(--warning);
+    background: rgba(255, 209, 102, 0.14);
+}
+
+.http-5xx {
+    color: #ffb0a8;
+    background: rgba(255, 127, 115, 0.14);
+}
+
+.http-other {
+    color: var(--muted);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.attempt-duration {
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.attempt-target {
+    margin-top: 6px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    overflow-wrap: anywhere;
+}
+
+.attempt-bar {
+    margin-top: 8px;
+    height: 3px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.05);
+    overflow: hidden;
+}
+
+.attempt-bar span {
+    display: block;
+    height: 100%;
+    border-radius: 2px;
+    background: var(--accent-strong);
+}
+
+.attempt-error {
+    margin: 8px 0 0;
+    color: #ffb0a8;
+    font-size: 0.9rem;
+    overflow-wrap: anywhere;
 }
 
 #inspect-delivery .panel {
@@ -959,12 +1080,44 @@ time {
 }
 
 .inspect-body .section-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
     flex-wrap: wrap;
+    padding: 10px 0;
+    background: #0a1828;
+    border-bottom: 1px solid rgba(157, 189, 255, 0.12);
 }
 
 .inspect-body [aria-pressed="true"] {
     border-color: var(--accent);
     background: rgba(92, 200, 255, 0.16);
+}
+
+.inspect-body .code-block {
+    white-space: pre;
+    word-break: normal;
+}
+
+.inspect-body .code-block.is-wrapped {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.tok-key {
+    color: var(--accent);
+}
+
+.tok-string {
+    color: var(--success);
+}
+
+.tok-number {
+    color: var(--warning);
+}
+
+.tok-literal {
+    color: #c1b5ff;
 }
 
 #inspect-page button:disabled,

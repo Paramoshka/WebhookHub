@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"strings"
 
+	"webhookhub/internal/model"
 	"webhookhub/web"
 )
 
@@ -28,7 +29,51 @@ func statusLabel(status string) string {
 	return strings.ReplaceAll(status, "_", " ")
 }
 
-var templateFuncs = template.FuncMap{"statusLabel": statusLabel}
+// maxAttemptDuration returns the longest attempt duration, floored at 1 ms so
+// duration bars never divide by zero.
+func maxAttemptDuration(attempts []model.DeliveryAttempt) int64 {
+	var longest int64
+	for _, attempt := range attempts {
+		if attempt.DurationMS > longest {
+			longest = attempt.DurationMS
+		}
+	}
+	return max(longest, 1)
+}
+
+// durationBarWidth scales an attempt duration against the longest one, 0..100.
+func durationBarWidth(durationMS, maxMS int64) int {
+	if durationMS <= 0 {
+		return 0
+	}
+	if maxMS < 1 {
+		maxMS = 1
+	}
+	return int(min(durationMS, maxMS) * 100 / maxMS)
+}
+
+// httpBadgeClass groups HTTP status codes into color bands for attempt badges.
+func httpBadgeClass(status int) string {
+	switch {
+	case status >= 200 && status < 300:
+		return "http-2xx"
+	case status >= 300 && status < 400:
+		return "http-3xx"
+	case status >= 400 && status < 500:
+		return "http-4xx"
+	case status >= 500 && status < 600:
+		return "http-5xx"
+	default:
+		return "http-other"
+	}
+}
+
+var templateFuncs = template.FuncMap{
+	"statusLabel":        statusLabel,
+	"maxAttemptDuration": maxAttemptDuration,
+	"durationBarWidth":   durationBarWidth,
+	"httpBadgeClass":     httpBadgeClass,
+}
 
 // parseTemplatesFS parses a page set with the shared funcs. Like
 // template.ParseFS, the root template takes the first file's name so Execute

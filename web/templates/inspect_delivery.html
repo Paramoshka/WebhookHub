@@ -24,24 +24,26 @@
 
     <h3>Delivery attempts</h3>
     {{if .Attempts}}
-    <div class="inspect-attempts">
-      <table class="data-table">
-        <thead><tr><th>ID</th><th>Target</th><th>Status</th><th>HTTP</th><th>Duration</th><th>Started</th><th>Error</th></tr></thead>
-        <tbody>
-          {{range .Attempts}}
-          <tr>
-            <td class="table-id"><a href="/webhooks/{{$.Webhook.ID}}/attempts/{{.ID}}?return_to={{urlquery $.ReturnURL}}">#{{.ID}}</a></td>
-            <td class="wrap-text">{{if .Target}}{{.Target}}{{else}}—{{end}}</td>
-            <td><span class="status-chip status-{{.Status}}">{{statusLabel .Status}}</span></td>
-            <td>{{if .HTTPStatus}}{{.HTTPStatus}}{{else}}—{{end}}</td>
-            <td>{{.DurationMS}} ms</td>
-            <td><time data-local-time datetime="{{.StartedAt.UTC.Format "2006-01-02T15:04:05.999999999Z07:00"}}">{{.StartedAt.UTC.Format "2006-01-02 15:04:05 UTC"}}</time></td>
-            <td class="wrap-text">{{if .ErrorMessage}}{{.ErrorMessage}}{{else}}—{{end}}</td>
-          </tr>
-          {{end}}
-        </tbody>
-      </table>
-    </div>
+    {{$maxDuration := maxAttemptDuration .Attempts}}
+    <ol class="attempt-timeline">
+      {{range .Attempts}}
+      <li class="attempt-item">
+        <span class="attempt-dot status-{{.Status}}" aria-hidden="true"></span>
+        <div class="attempt-content">
+          <div class="attempt-head">
+            <a class="attempt-id table-id" href="/webhooks/{{$.Webhook.ID}}/attempts/{{.ID}}?return_to={{urlquery $.ReturnURL}}">#{{.ID}}</a>
+            <span class="status-chip status-{{.Status}}">{{statusLabel .Status}}</span>
+            {{if .HTTPStatus}}<span class="http-badge {{httpBadgeClass .HTTPStatus}}">{{.HTTPStatus}}</span>{{end}}
+            <span class="attempt-duration">{{.DurationMS}} ms</span>
+            <time data-local-time datetime="{{.StartedAt.UTC.Format "2006-01-02T15:04:05.999999999Z07:00"}}">{{.StartedAt.UTC.Format "2006-01-02 15:04:05 UTC"}}</time>
+          </div>
+          {{if .Target}}<div class="attempt-target">→ {{.Target}}</div>{{end}}
+          <div class="attempt-bar" aria-hidden="true"><span style="width: {{durationBarWidth .DurationMS $maxDuration}}%"></span></div>
+          {{if .ErrorMessage}}<p class="attempt-error">{{.ErrorMessage}}</p>{{end}}
+        </div>
+      </li>
+      {{end}}
+    </ol>
     {{else}}<p class="muted">No delivery attempts yet.</p>{{end}}
   </div>
   {{template "inspect-body" .Response}}

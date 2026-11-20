@@ -30,9 +30,10 @@ configured outgoing secret and a new timestamp for each delivery attempt.
 ## Inspect a webhook
 
 Open **Inspect** from the logs, DLQ, or metrics to view `/webhooks/{id}`. The page
-shows request headers, JSON with Formatted/Raw views, copy controls, and delivery
-history. Status, attempts, and the latest saved response refresh every five
-seconds without replacing the request payload. Replay queues a new delivery;
+shows request headers, JSON with Formatted/Raw views, syntax highlighting, a wrap
+toggle, copy controls, and delivery history as a timeline of attempts. Status,
+attempts, and the latest saved response refresh every five seconds without
+replacing the request payload. Replay queues a new delivery;
 it does not mean the receiver has accepted the webhook yet.
 
 Open an attempt ID to inspect its saved response headers and body. Each new

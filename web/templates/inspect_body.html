@@ -10,6 +10,9 @@
       <button type="button" class="btn-secondary" data-body-mode="formatted" aria-pressed="true">Formatted</button>
       <button type="button" class="btn-secondary" data-body-mode="raw" aria-pressed="false">Raw</button>
       {{end}}
+      {{if and .Size (not .Binary)}}
+      <button type="button" class="btn-secondary" data-wrap-toggle aria-pressed="false">Wrap lines</button>
+      {{end}}
       {{if .Size}}
       <button type="button" class="btn-secondary" data-copy-body>{{if .Binary}}Copy preview{{else}}Copy{{end}}</button>
       {{end}}
@@ -18,7 +21,7 @@
   {{if .Binary}}<p class="helper-text">Hex preview of the first {{if gt .Size 256}}256{{else}}{{.Size}}{{end}} bytes.</p>{{end}}
   {{if .Truncated}}<p class="inspect-error">Response truncated: only the first 1 MiB was saved.</p>{{end}}
   {{if .Size}}
-  {{if .JSON}}<pre class="code-block" data-body-text="formatted">{{.Formatted}}</pre>{{end}}
+  {{if .JSON}}<pre class="code-block" data-body-text="formatted" data-highlight="json">{{.Formatted}}</pre>{{end}}
   <pre class="code-block" data-body-text="raw" {{if .JSON}}hidden{{end}}>{{.Raw}}</pre>
   {{else}}
   <p class="muted">Empty body.</p>
