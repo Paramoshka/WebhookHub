@@ -66,8 +66,6 @@ func openForwarderTestDB(t *testing.T) *storage.DB {
 
 func TestForwardFinalizesAllOutcomes(t *testing.T) {
 	db := openForwarderTestDB(t)
-	originalClient := deliveryClient
-	t.Cleanup(func() { deliveryClient = originalClient })
 	for _, scenario := range []string{"success", "retry", "dead_letter", "cancelled", "skipped"} {
 		t.Run(scenario, func(t *testing.T) {
 			hook := model.Webhook{Source: scenario, Status: "pending", ReceivedAt: time.Now()}
@@ -91,7 +89,7 @@ func TestForwardFinalizesAllOutcomes(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			called := false
-			deliveryClient = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
 				called = true
 				if scenario == "skipped" {
 					t.Fatal("skipped webhook was sent")
@@ -111,7 +109,7 @@ func TestForwardFinalizesAllOutcomes(t *testing.T) {
 				}
 				return &http.Response{StatusCode: status, Header: make(http.Header), Body: io.NopCloser(strings.NewReader("response"))}, nil
 			})}
-			err = Forward(ctx, db, &claims[0], 0)
+			err = Forward(ctx, db, client, &claims[0], 0)
 			if scenario == "cancelled" {
 				if !errors.Is(err, context.Canceled) {
 					t.Fatalf("cancel: %v", err)
@@ -158,12 +156,10 @@ func TestForwardCompletesAlreadyClaimedDeliveryAfterPause(t *testing.T) {
 	if err := db.SetForwardingPaused(ctx, rule.Source, true); err != nil {
 		t.Fatal(err)
 	}
-	originalClient := deliveryClient
-	t.Cleanup(func() { deliveryClient = originalClient })
-	deliveryClient = &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+	client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
 		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader("accepted"))}, nil
 	})}
-	if err := Forward(ctx, db, &claims[0], DefaultDeliveryTimeout); err != nil {
+	if err := Forward(ctx, db, client, &claims[0], DefaultDeliveryTimeout); err != nil {
 		t.Fatal(err)
 	}
 	stored, err := db.FindByID(ctx, int(hook.ID))
@@ -174,7 +170,7 @@ func TestForwardCompletesAlreadyClaimedDeliveryAfterPause(t *testing.T) {
 
 func TestForwardRejectsExpiredClaimBeforeDatabaseAccess(t *testing.T) {
 	expired := time.Now().Add(-time.Second)
-	if err := Forward(context.Background(), nil, &model.Webhook{DeliveryLeaseUntil: &expired}, 0); !errors.Is(err, context.DeadlineExceeded) {
+	if err := Forward(context.Background(), nil, nil, &model.Webhook{DeliveryLeaseUntil: &expired}, 0); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("expired claim: %v", err)
 	}
 }

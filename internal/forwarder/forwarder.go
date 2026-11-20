@@ -19,12 +19,15 @@ import (
 const DefaultDeliveryTimeout = 5 * time.Second
 const DeliveryFinalizationReserve = 5 * time.Second
 
-// deliveryClient has no client-level timeout: every attempt gets its own
-// deadline from the configured delivery timeout.
-var deliveryClient = &http.Client{
-	CheckRedirect: func(*http.Request, []*http.Request) error {
-		return http.ErrUseLastResponse
-	},
+// newDeliveryClient returns a client with no client-level timeout: every
+// attempt gets its own deadline from the configured delivery timeout.
+// Redirects are never followed; the original response is saved instead.
+func newDeliveryClient() *http.Client {
+	return &http.Client{
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 }
 
 const maxBody = int64(1 << 20)
@@ -39,7 +42,7 @@ type WorkerConfig struct {
 	Timeout       time.Duration
 }
 
-func Forward(ctx context.Context, db *storage.DB, h *model.Webhook, timeout time.Duration) error {
+func Forward(ctx context.Context, db *storage.DB, client *http.Client, h *model.Webhook, timeout time.Duration) error {
 	if timeout <= 0 {
 		timeout = DefaultDeliveryTimeout
 	}
@@ -61,22 +64,12 @@ func Forward(ctx context.Context, db *storage.DB, h *model.Webhook, timeout time
 	if err != nil {
 		return fmt.Errorf("create delivery attempt: %w", err)
 	}
-	result := storage.DeliveryResult{Status: "skipped", ErrorMessage: "no forwarding target configured"}
+	var outcome deliveryOutcome
 	if rule.Target != "" {
-		response, errorMessage, success := performDeliveryAttempt(preparationCtx, rule, h, timeout)
-		result = storage.DeliveryResult{Status: "failed", Response: response, ErrorMessage: errorMessage}
-		if success {
-			result.Status = "success"
-		} else if h.FailureCount+1 < normalizeMaxAttempts(rule.RetryMaxAttempts) {
-			nextRetryAt := time.Now().Add(retryDelay(normalizeBackoffSeconds(rule.RetryBackoffSeconds), h.FailureCount+1))
-			result.NextRetryAt = &nextRetryAt
-		}
+		response, errorMessage, success := performDeliveryAttempt(preparationCtx, client, rule, h, timeout)
+		outcome = deliveryOutcome{response: response, errorMessage: errorMessage, success: success}
 	}
-	if ctx.Err() != nil {
-		result.Status = "cancelled"
-		result.ErrorMessage = ctx.Err().Error()
-		result.NextRetryAt = nil
-	}
+	result := planDeliveryResult(rule, h.FailureCount, outcome, ctx.Err(), time.Now())
 	result.DurationMS = time.Since(startedAt).Milliseconds()
 	// Worker cancellation must not prevent recording cancellation. This detached
 	// operation is still bounded by both the reserve and the claim's lease.
@@ -103,19 +96,20 @@ func StartWorkerPool(ctx context.Context, db *storage.DB, config WorkerConfig) *
 		config.Timeout = DefaultDeliveryTimeout
 	}
 
+	client := newDeliveryClient()
 	wg := &sync.WaitGroup{}
 	for workerID := 1; workerID <= config.Count; workerID++ {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			runWorker(ctx, db, config, id)
+			runWorker(ctx, db, client, config, id)
 		}(workerID)
 	}
 
 	return wg
 }
 
-func runWorker(ctx context.Context, db *storage.DB, config WorkerConfig, workerID int) {
+func runWorker(ctx context.Context, db *storage.DB, client *http.Client, config WorkerConfig, workerID int) {
 	for {
 		if ctx.Err() != nil {
 			return
@@ -126,7 +120,7 @@ func runWorker(ctx context.Context, db *storage.DB, config WorkerConfig, workerI
 		if err != nil {
 			log.Printf("delivery worker %d failed to claim webhook: %v", workerID, err)
 		} else if len(hooks) > 0 {
-			if err := Forward(ctx, db, &hooks[0], config.Timeout); err != nil && !errors.Is(err, context.Canceled) {
+			if err := Forward(ctx, db, client, &hooks[0], config.Timeout); err != nil && !errors.Is(err, context.Canceled) {
 				log.Printf("delivery worker %d failed webhook %d: %v", workerID, hooks[0].ID, err)
 			}
 			continue
@@ -144,11 +138,7 @@ func runWorker(ctx context.Context, db *storage.DB, config WorkerConfig, workerI
 	}
 }
 
-func performDeliveryAttempt(parent context.Context, rule model.ForwardingRule, h *model.Webhook, timeout time.Duration) (model.DeliveryResponse, string, bool) {
-	return performDeliveryAttemptWithClient(parent, deliveryClient, rule, h, timeout)
-}
-
-func performDeliveryAttemptWithClient(parent context.Context, client *http.Client, rule model.ForwardingRule, h *model.Webhook, timeout time.Duration) (model.DeliveryResponse, string, bool) {
+func performDeliveryAttempt(parent context.Context, client *http.Client, rule model.ForwardingRule, h *model.Webhook, timeout time.Duration) (model.DeliveryResponse, string, bool) {
 	var response model.DeliveryResponse
 	if timeout <= 0 {
 		timeout = DefaultDeliveryTimeout
@@ -219,6 +209,38 @@ func performDeliveryAttemptWithClient(parent context.Context, client *http.Clien
 	}
 
 	return response, "", true
+}
+
+// deliveryOutcome is the raw result of one HTTP attempt, before retry policy.
+type deliveryOutcome struct {
+	response     model.DeliveryResponse
+	errorMessage string
+	success      bool
+}
+
+// planDeliveryResult decides an attempt's outcome without side effects: retry
+// eligibility and backoff live here; mapping the result onto webhook state
+// belongs to storage.FinishDelivery.
+func planDeliveryResult(rule model.ForwardingRule, failureCount int, outcome deliveryOutcome, cancelErr error, now time.Time) storage.DeliveryResult {
+	var result storage.DeliveryResult
+	switch {
+	case rule.Target == "":
+		result = storage.DeliveryResult{Status: "skipped", ErrorMessage: "no forwarding target configured"}
+	case outcome.success:
+		result = storage.DeliveryResult{Status: "success", Response: outcome.response}
+	default:
+		result = storage.DeliveryResult{Status: "failed", Response: outcome.response, ErrorMessage: outcome.errorMessage}
+		if failureCount+1 < normalizeMaxAttempts(rule.RetryMaxAttempts) {
+			nextRetryAt := now.Add(retryDelay(normalizeBackoffSeconds(rule.RetryBackoffSeconds), failureCount+1))
+			result.NextRetryAt = &nextRetryAt
+		}
+	}
+	if cancelErr != nil {
+		result.Status = "cancelled"
+		result.ErrorMessage = cancelErr.Error()
+		result.NextRetryAt = nil
+	}
+	return result
 }
 
 func normalizeMaxAttempts(value int) int {
