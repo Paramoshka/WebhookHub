@@ -9,7 +9,6 @@ import (
 
 	"webhookhub/internal/model"
 	"webhookhub/internal/storage"
-	"webhookhub/web"
 )
 
 func TestTimestampTemplatesIncludeUTCInstantsAndFallbacks(t *testing.T) {
@@ -107,7 +106,7 @@ func TestProtectedTemplatesRenderCSRFToken(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			tmpl, err := template.ParseFS(web.Templates, test.files...)
+			tmpl, err := parseTemplatesFS(test.files...)
 			if err != nil {
 				t.Fatal(err)
 			}

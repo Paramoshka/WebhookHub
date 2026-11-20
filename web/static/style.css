@@ -15,6 +15,7 @@
     --warning: #ffd166;
     --shadow: 0 24px 60px rgba(1, 8, 16, 0.38);
     --radius: 24px;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 * {
@@ -401,10 +402,6 @@ select:not([multiple]),
     border-radius: 22px;
 }
 
-.panel-spaced {
-    margin-top: 24px;
-}
-
 #edit-form:empty {
     display: none;
 }
@@ -463,6 +460,7 @@ label {
 }
 
 .field-label {
+    display: block;
     margin-bottom: 0.45rem;
 }
 
@@ -701,10 +699,10 @@ textarea::placeholder {
     color: #7f95ae;
 }
 
-input:focus,
+input:focus-visible,
 .timezone-picker:focus-visible,
-select:focus,
-textarea:focus {
+select:focus-visible,
+textarea:focus-visible {
     border-color: rgba(92, 200, 255, 0.52);
     box-shadow: 0 0 0 4px rgba(92, 200, 255, 0.12);
     background-color: rgba(4, 13, 22, 0.92);
@@ -725,6 +723,11 @@ button {
 button:hover,
 button:focus-visible {
     transform: translateY(-1px);
+}
+
+button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 .btn-primary {
@@ -817,6 +820,11 @@ button:focus-visible {
 .table-id {
     color: #a9c8ea;
     white-space: nowrap;
+}
+
+.table-id,
+time {
+    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
 }
 
@@ -841,10 +849,6 @@ button:focus-visible {
     color: var(--heading);
 }
 
-.status-chip {
-    text-transform: capitalize;
-}
-
 .status-success {
     color: var(--success);
     background: rgba(95, 224, 166, 0.12);
@@ -855,7 +859,8 @@ button:focus-visible {
     background: rgba(255, 127, 115, 0.14);
 }
 
-.status-pending {
+.status-pending,
+.status-interrupted {
     color: var(--warning);
     background: rgba(255, 209, 102, 0.14);
 }
@@ -870,7 +875,8 @@ button:focus-visible {
     background: rgba(153, 128, 255, 0.16);
 }
 
-.status-skipped {
+.status-skipped,
+.status-cancelled {
     color: #c7d4e1;
     background: rgba(199, 212, 225, 0.1);
 }
@@ -920,10 +926,6 @@ button:focus-visible {
 
 .metrics-empty {
     color: var(--muted);
-}
-
-.inspect-layout {
-    padding: 12px;
 }
 
 .inspect-headers {
@@ -999,6 +1001,7 @@ button:focus-visible {
     background: rgba(4, 13, 22, 0.88);
     color: #dbeaff;
     border: 1px solid rgba(157, 189, 255, 0.12);
+    font-family: var(--font-mono);
     overflow-x: auto;
     white-space: pre-wrap;
     word-break: break-word;
@@ -1109,6 +1112,25 @@ button:focus-visible {
     }
 }
 
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    button:hover,
+    button:focus-visible,
+    .nav-link:hover,
+    .nav-link:focus-visible,
+    .hero-card:hover,
+    .hero-card:focus-visible {
+        transform: none;
+    }
+}
+
 @media (max-width: 960px) {
     .navbar,
     .container {
@@ -1134,10 +1156,6 @@ button:focus-visible {
 
     .brand-subtitle {
         display: none;
-    }
-
-    .feature-grid {
-        display: grid;
     }
 }
 

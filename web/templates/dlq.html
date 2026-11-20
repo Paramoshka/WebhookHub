@@ -12,8 +12,11 @@
     <div class="section">
       <div class="section-title">Filter</div>
       <div class="fields grid-2">
-        <input type="text" name="source" value="{{.Source}}" placeholder="Webhook source (e.g., stripe)">
-        <button type="submit" class="btn-primary">Apply Filter</button>
+        <label>
+          <span class="field-label">Source</span>
+          <input type="text" name="source" value="{{.Source}}" placeholder="e.g., stripe">
+        </label>
+        <button type="submit" class="btn-primary" style="align-self: end">Apply filter</button>
       </div>
     </div>
   </form>
@@ -56,7 +59,7 @@
           <div class="action-buttons">
             <form method="POST" action="/api/webhooks/replay?id={{.ID}}&redirect_to={{urlquery $.CurrentURL}}">
               <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
-              <button class="btn-edit" type="submit">Requeue</button>
+              <button class="btn-edit" type="submit">Replay</button>
             </form>
             <a href="/webhooks/{{.ID}}?return_to={{urlquery $.CurrentURL}}" target="_blank" class="action-link">Inspect</a>
             <form method="POST" action="/api/webhooks/delete?id={{.ID}}&redirect_to={{urlquery $.CurrentURL}}" onsubmit="return confirm('Delete this DLQ item?')">
@@ -78,9 +81,17 @@
   {{end}}
 
   <div class="pagination">
-    <a href="{{.PrevURL}}" class="nav-link {{if .DisablePrev}}is-disabled{{end}}">Prev</a>
+    {{if .DisablePrev}}
+    <span class="nav-link is-disabled" aria-disabled="true">Prev</span>
+    {{else}}
+    <a href="{{.PrevURL}}" class="nav-link">Prev</a>
+    {{end}}
     <span>Page {{.CurrentPage}}</span>
-    <a href="{{.NextURL}}" class="nav-link {{if .DisableNext}}is-disabled{{end}}">Next</a>
+    {{if .DisableNext}}
+    <span class="nav-link is-disabled" aria-disabled="true">Next</span>
+    {{else}}
+    <a href="{{.NextURL}}" class="nav-link">Next</a>
+    {{end}}
   </div>
 </section>
 <script src="/static/dlq.js" defer></script>

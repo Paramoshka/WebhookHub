@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -15,10 +15,10 @@
     <form method="POST" action="/login" class="login-form">
       <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
       <label>Username
-        <input type="text" name="username" required />
+        <input type="text" name="username" autocomplete="username" required />
       </label>
       <label>Password
-        <input type="password" name="password" required />
+        <input type="password" name="password" autocomplete="current-password" required />
       </label>
       <button type="submit" class="btn-primary">Login</button>
     </form>

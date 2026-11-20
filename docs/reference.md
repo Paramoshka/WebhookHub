@@ -88,7 +88,7 @@ and cookie from `GET /login`. The browser UI handles these cookies and tokens.
 | `POST /hook/{source}` | Receive a webhook; no admin login, optional per-source HMAC |
 | `GET /healthz`, `GET /readyz` | Public process and database health checks |
 | `GET /api/webhooks` | Paginated JSON events, including payload and latest response |
-| `POST /api/webhooks/replay?id={id}` | Requeue one event; optional local `redirect_to` |
+| `POST /api/webhooks/replay?id={id}` | Replay one event; optional local `redirect_to` |
 | `POST /api/webhooks/delete?id={id}` | Delete an event and its attempt history; optional local `redirect_to` |
 | `POST /api/webhooks/replay/bulk` | Requeue selected dead-lettered events using form data |
 | `POST /forwarding/pause`, `POST /forwarding/resume` | Set a source's delivery state using a `source` form field |
@@ -195,7 +195,7 @@ including after Replay. Background refresh does not add browser history entries.
 **Pause updates** pauses background refresh for logs and metrics. Filters,
 pagination, and actions still work while paused; **Resume updates** fetches fresh
 data immediately. Each section shows its last successful refresh time and reports
-refresh failures while retaining the displayed data. Retry/Delete report progress
+refresh failures while retaining the displayed data. Replay/Delete report progress
 and errors and prevent repeated clicks while an action is running. Action results
 refresh the view once even while background updates are paused.
 

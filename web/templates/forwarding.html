@@ -14,26 +14,41 @@
   <div class="section">
     <div class="section-title">Routing</div>
     <div class="fields grid-2">
-      <input type="text" name="source" placeholder="Webhook source (e.g., stripe)" required>
-      <input type="url"  name="target" placeholder="Target URL (https://...)" required>
+      <label>
+        <span class="field-label">Source</span>
+        <input type="text" name="source" placeholder="e.g., stripe" required>
+      </label>
+      <label>
+        <span class="field-label">Target URL</span>
+        <input type="url" name="target" placeholder="https://example.com/hook" required>
+      </label>
     </div>
   </div>
 
   <div class="section">
     <div class="section-title">Incoming HMAC <span class="muted">(Stripe-style, optional)</span></div>
     <div class="fields">
-      <input type="password"
-             name="verify_secret"
-             placeholder="Stripe signing secret (whsec_...)"
-             autocomplete="off" data-lpignore="true">
+      <label>
+        <span class="field-label">Signing secret</span>
+        <input type="password"
+               name="verify_secret"
+               placeholder="whsec_…"
+               autocomplete="off" data-lpignore="true">
+      </label>
       <div class="fields grid-2">
-        <input type="text"
-               name="verify_header"
-               placeholder="Signature header (default: Stripe-Signature)">
-        <input type="number"
-               name="tolerance"
-               placeholder="Time tolerance, seconds (default: 300)"
-               min="0" step="1">
+        <label>
+          <span class="field-label">Signature header</span>
+          <input type="text"
+                 name="verify_header"
+                 placeholder="Default: Stripe-Signature">
+        </label>
+        <label>
+          <span class="field-label">Tolerance, seconds</span>
+          <input type="number"
+                 name="tolerance"
+                 placeholder="Default: 300"
+                 min="0" step="1">
+        </label>
       </div>
     </div>
   </div>
@@ -41,31 +56,42 @@
   <div class="section">
     <div class="section-title">Sign outgoing <span class="muted">(optional)</span></div>
     <div class="fields grid-2">
-      <input type="password"
-             name="outgoing_secret"
-             placeholder="Secret to sign outgoing deliveries"
-             autocomplete="off" data-lpignore="true">
-      <input type="text" disabled
-             placeholder="Header: X-WebhookHub-Signature (t=..., v1=...)">
+      <label>
+        <span class="field-label">Outgoing secret</span>
+        <input type="password"
+               name="outgoing_secret"
+               placeholder="Signs outgoing deliveries"
+               autocomplete="off" data-lpignore="true">
+      </label>
+      <label>
+        <span class="field-label">Outgoing header</span>
+        <input type="text" disabled value="X-WebhookHub-Signature (t=…, v1=…)">
+      </label>
     </div>
   </div>
 
   <div class="section">
     <div class="section-title">Delivery retry policy</div>
     <div class="fields grid-2">
-      <input type="number"
-             name="retry_max_attempts"
-             placeholder="Max attempts (default: 3)"
-             min="1" step="1">
-      <input type="number"
-             name="retry_backoff_seconds"
-             placeholder="Initial backoff in seconds (default: 2)"
-             min="1" step="1">
+      <label>
+        <span class="field-label">Max attempts</span>
+        <input type="number"
+               name="retry_max_attempts"
+               placeholder="Default: 3"
+               min="1" step="1">
+      </label>
+      <label>
+        <span class="field-label">Initial backoff, seconds</span>
+        <input type="number"
+               name="retry_backoff_seconds"
+               placeholder="Default: 2"
+               min="1" step="1">
+      </label>
     </div>
   </div>
 
   <div class="actions">
-    <button class="btn-primary" type="submit">Add Rule</button>
+    <button class="btn-primary" type="submit">Add rule</button>
   </div>
 </form>
 </section>
@@ -137,5 +163,5 @@
 </table>
 </section>
 
-<div id="edit-form" class="panel panel-spaced"></div>
+<div id="edit-form" class="panel"></div>
 {{end}}

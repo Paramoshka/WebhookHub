@@ -37,7 +37,7 @@ history and uses the current forwarding rule.
 - Persist incoming webhooks before delivery
 - Retry failed deliveries with configurable attempts and backoff
 - Move exhausted deliveries into the dead-letter queue
-- After fixing the receiver, requeue individual events or
+- After fixing the receiver, Replay individual events or requeue
   [up to 20 selected DLQ events](reference.md#bulk-recovery-from-dlq) at a time
 - Delete events that no longer need recovery
 

@@ -14,7 +14,7 @@
 <p class="helper-text">Metrics last updated: <time id="metrics-updated" data-local-time>Not yet loaded</time></p>
 <p id="metrics-refresh-message" role="status" aria-live="polite"></p>
 <div id="delivery-metrics" hx-get="/partials/metrics" hx-trigger="load, every 5s, refresh" hx-swap="innerHTML" hx-sync="this:drop">
-  Loading delivery metrics...
+  Loading delivery metrics…
 </div>
 
 <section class="panel">
@@ -42,12 +42,13 @@
             Status
             <select name="status">
               <option value="">Any</option>
-              <option value="success" {{if eq .Status "success"}}selected{{end}}>Success</option>
-              <option value="failed" {{if eq .Status "failed"}}selected{{end}}>Failed</option>
-              <option value="pending" {{if eq .Status "pending"}}selected{{end}}>Pending</option>
-              <option value="processing" {{if eq .Status "processing"}}selected{{end}}>Processing</option>
-              <option value="retrying" {{if eq .Status "retrying"}}selected{{end}}>Retrying</option>
-              <option value="dead_lettered" {{if eq .Status "dead_lettered"}}selected{{end}}>Dead-Lettered</option>
+              <option value="success" {{if eq .Status "success"}}selected{{end}}>{{statusLabel "success"}}</option>
+              <option value="failed" {{if eq .Status "failed"}}selected{{end}}>{{statusLabel "failed"}}</option>
+              <option value="pending" {{if eq .Status "pending"}}selected{{end}}>{{statusLabel "pending"}}</option>
+              <option value="processing" {{if eq .Status "processing"}}selected{{end}}>{{statusLabel "processing"}}</option>
+              <option value="retrying" {{if eq .Status "retrying"}}selected{{end}}>{{statusLabel "retrying"}}</option>
+              <option value="skipped" {{if eq .Status "skipped"}}selected{{end}}>{{statusLabel "skipped"}}</option>
+              <option value="dead_lettered" {{if eq .Status "dead_lettered"}}selected{{end}}>{{statusLabel "dead_lettered"}}</option>
             </select>
           </label>
         </div>
@@ -75,7 +76,7 @@
 
         <label style="margin-top: 12px">
           Search
-          <input type="text" name="q" value="{{.Query}}" placeholder="Search in source, payload, headers, errors..." />
+          <input type="text" name="q" value="{{.Query}}" placeholder="Search in source, payload, headers, errors…" />
         </label>
 
         <div class="fields grid-2" style="margin-top: 12px">
@@ -113,7 +114,7 @@
   <p class="helper-text">Logs last updated: <time id="logs-updated" data-local-time>Not yet loaded</time></p>
   <p id="logs-refresh-message" role="status" aria-live="polite"></p>
   <div id="webhooks-table" hx-get="{{.CurrentURL}}" hx-trigger="load, every 5s, refresh" hx-swap="outerHTML" hx-sync="#filter-form:drop">
-    Loading logs...
+    Loading logs…
   </div>
 </section>
 </div>

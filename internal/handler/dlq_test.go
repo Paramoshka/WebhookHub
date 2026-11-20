@@ -97,10 +97,10 @@ func TestDLQPaginationBounds(t *testing.T) {
 				t.Fatalf("expected 200, got %d", response.Code)
 			}
 			body := response.Body.String()
-			if got := strings.Contains(body, `is-disabled">Prev`); got != test.prevDisabled {
+			if got := strings.Contains(body, `aria-disabled="true">Prev`); got != test.prevDisabled {
 				t.Fatalf("Prev disabled=%v, want %v", got, test.prevDisabled)
 			}
-			if got := strings.Contains(body, `is-disabled">Next`); got != test.nextDisabled {
+			if got := strings.Contains(body, `aria-disabled="true">Next`); got != test.nextDisabled {
 				t.Fatalf("Next disabled=%v, want %v", got, test.nextDisabled)
 			}
 		})

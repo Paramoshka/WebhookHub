@@ -15,7 +15,7 @@
       <td class="table-id">#{{.ID}}</td>
       <td><span class="source-badge">{{.Source}}</span></td>
       <td><time data-local-time datetime="{{.ReceivedAt.UTC.Format "2006-01-02T15:04:05.999999999Z07:00"}}">{{.ReceivedAt.UTC.Format "2006-01-02 15:04:05 UTC"}}</time></td>
-      <td><span class="status-chip status-{{.Status}}">{{.Status}}</span></td>
+      <td><span class="status-chip status-{{.Status}}">{{statusLabel .Status}}</span></td>
       <td>
         <div class="table-actions">
           {{if eq .Status "processing"}}
@@ -28,7 +28,7 @@
             hx-sync="this:drop"
             hx-trigger="click"
             class="action-link"
-          >Retry</button>
+          >Replay</button>
           {{end}}
 
           <a href="/webhooks/{{.ID}}?return_to={{urlquery $.CurrentPageURL}}" target="_blank" class="action-link">Inspect</a>
@@ -52,5 +52,6 @@
 {{else}}
 <div class="empty-state">
   <h3>No webhooks yet</h3>
+  <p>Send a request to <code>/hook/:source</code> and it will appear here with delivery details.</p>
 </div>
 {{end}}

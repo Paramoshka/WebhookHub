@@ -16,24 +16,24 @@
     </label>
 
     <label>
-      <div class="field-label">Target URL</div>
+      <span class="field-label">Target URL</span>
       <input type="url" name="target" value="{{.Target}}" required>
     </label>
 
     <div class="section">
       <div class="section-title">Incoming HMAC</div>
       <label>
-        <div class="field-label">New signing secret</div>
+        <span class="field-label">New signing secret</span>
         <input type="password" name="verify_secret" placeholder="{{if .VerifySecret}}Leave blank to keep current secret{{else}}Stripe signing secret (whsec_...){{end}}"
                autocomplete="off" data-lpignore="true">
       </label>
       <label>
-        <div class="field-label">Signature header</div>
+        <span class="field-label">Signature header</span>
         <input type="text" name="verify_header" value="{{.VerifyHeader}}"
                placeholder="Stripe-Signature">
       </label>
       <label>
-        <div class="field-label">Tolerance, seconds</div>
+        <span class="field-label">Tolerance, seconds</span>
         <input type="number" name="tolerance" value="{{if gt .ToleranceSeconds 0}}{{.ToleranceSeconds}}{{end}}" min="0" step="1"
                placeholder="{{if .VerifySecret}}Leave blank to keep current{{else}}300{{end}}">
       </label>
@@ -48,7 +48,7 @@
     <div class="section">
       <div class="section-title">Sign outgoing delivery</div>
       <label>
-        <div class="field-label">New outgoing secret</div>
+        <span class="field-label">New outgoing secret</span>
         <input type="password" name="outgoing_secret" placeholder="{{if .OutgoingSecret}}Leave blank to keep current secret{{else}}Secret to sign outgoing deliveries{{end}}"
                autocomplete="off" data-lpignore="true">
       </label>
@@ -64,17 +64,17 @@
     <div class="section">
       <div class="section-title">Delivery retry policy</div>
       <label>
-        <div class="field-label">Max attempts</div>
+        <span class="field-label">Max attempts</span>
         <input type="number" name="retry_max_attempts" value="{{if gt .RetryMaxAttempts 0}}{{.RetryMaxAttempts}}{{else}}3{{end}}" min="1" step="1">
       </label>
       <label>
-        <div class="field-label">Initial backoff, seconds</div>
+        <span class="field-label">Initial backoff, seconds</span>
         <input type="number" name="retry_backoff_seconds" value="{{if gt .RetryBackoffSeconds 0}}{{.RetryBackoffSeconds}}{{else}}2{{end}}" min="1" step="1">
       </label>
       <div class="helper-text">Backoff grows exponentially between attempts and is capped to keep delivery responsive.</div>
     </div>
 
-    <button type="submit" class="btn-primary">Save Changes</button>
+    <button type="submit" class="btn-primary">Save changes</button>
   </form>
   {{end}}
 </div>

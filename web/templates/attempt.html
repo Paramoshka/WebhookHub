@@ -5,7 +5,7 @@
     <a href="{{.InspectURL}}" class="action-link">Back to webhook #{{.Webhook.ID}}</a>
     <h1>Delivery attempt #{{.Attempt.ID}}</h1>
     <p class="wrap-text">{{.Attempt.Target}}</p>
-    <p><span class="status-chip status-{{.Attempt.Status}}">{{.Attempt.Status}}</span>
+    <p><span class="status-chip status-{{.Attempt.Status}}">{{statusLabel .Attempt.Status}}</span>
       · HTTP {{if .Attempt.HTTPStatus}}{{.Attempt.HTTPStatus}}{{else}}—{{end}}
       · {{.Attempt.DurationMS}} ms
       · <time data-local-time datetime="{{.Attempt.StartedAt.UTC.Format "2006-01-02T15:04:05.999999999Z07:00"}}">{{.Attempt.StartedAt.UTC.Format "2006-01-02 15:04:05 UTC"}}</time></p>
